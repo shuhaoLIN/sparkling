@@ -42,45 +42,19 @@ open class DefaultCallHandler protected constructor(
             bridge.setBridgeContext(it)
         }
 
-        if (!bridge.compatibility.value) {
-            when (params) {
-                is JSONObject -> {
-                    JsonProcessor(bridge, params, call.platform).apply { this@apply.context = this@DefaultCallHandler.context }
-                }
-
-                is ReadableMap -> {
-                    ReadableMapProcessor(bridge, unWrapperParams(params) ?: params).apply { this@apply.context = this@DefaultCallHandler.context }
-                }
-
-                else -> {
-                    return
-                }
-            }.handle(callback)
-        } else { // compatible bridge
-            val idlCallback =
-                object : IDLBridgeMethod.Callback {
-                    override fun invoke(data: Map<String, Any?>) {
-                        callback.onBridgeResult(data)
-                    }
-                }
-            when (params) {
-                is JSONObject -> {
-                    bridge.realHandle(Utils.jsonToMap(params), idlCallback, BridgePlatformType.ALL)
-                }
-
-                is ReadableMap -> {
-                    bridge.realHandle(
-                        (unWrapperParams(params) ?: params).toHashMap(),
-                        idlCallback,
-                        BridgePlatformType.ALL,
-                    )
-                }
-
-                else -> {
-                    bridge.realHandle(emptyMap(), idlCallback, BridgePlatformType.ALL)
-                }
+        when (params) {
+            is JSONObject -> {
+                JsonProcessor(bridge, params, call.platform).apply { this@apply.context = this@DefaultCallHandler.context }
             }
-        }
+
+            is ReadableMap -> {
+                ReadableMapProcessor(bridge, unWrapperParams(params) ?: params).apply { this@apply.context = this@DefaultCallHandler.context }
+            }
+
+            else -> {
+                return
+            }
+        }.handle(callback)
     }
 
     /** Registers a method class in this handler's pool. */

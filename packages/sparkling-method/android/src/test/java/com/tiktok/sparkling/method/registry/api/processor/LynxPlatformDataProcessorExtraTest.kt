@@ -7,6 +7,7 @@ import com.lynx.react.bridge.JavaOnlyArray
 import com.lynx.react.bridge.JavaOnlyMap
 import com.tiktok.sparkling.method.registry.core.BridgePlatformType
 import com.tiktok.sparkling.method.registry.core.IBridgeContext
+import com.tiktok.sparkling.method.registry.core.IBridgePlatformType
 import com.tiktok.sparkling.method.registry.core.IDLBridgeMethod
 import com.tiktok.sparkling.method.registry.core.annotation.DefaultType
 import com.tiktok.sparkling.method.registry.core.annotation.IDLMethodIntEnum
@@ -177,7 +178,7 @@ class LynxPlatformDataProcessorExtraTest {
             override fun realHandle(
                 params: Map<String, Any?>,
                 callback: IDLBridgeMethod.Callback,
-                type: BridgePlatformType,
+                type: IBridgePlatformType,
             ) = Unit
 
             override fun setProviderFactory(contextProviderFactory: ContextProviderFactory?) = Unit
@@ -203,7 +204,7 @@ class LynxPlatformDataProcessorExtraTest {
                     override fun realHandle(
                         params: Map<String, Any?>,
                         callback: IDLBridgeMethod.Callback,
-                        type: BridgePlatformType,
+                        type: IBridgePlatformType,
                     ) = Unit
 
                     override fun setProviderFactory(contextProviderFactory: ContextProviderFactory?) = Unit

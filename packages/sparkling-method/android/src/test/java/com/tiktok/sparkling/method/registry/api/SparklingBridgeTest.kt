@@ -17,6 +17,7 @@ import com.tiktok.sparkling.method.protocol.impl.interceptor.BridgeMockIntercept
 import com.tiktok.sparkling.method.protocol.interfaces.IBridgeLifeClient
 import com.tiktok.sparkling.method.registry.core.model.context.ContextProviderFactory
 import com.tiktok.sparkling.method.registry.core.BridgePlatformType
+import com.tiktok.sparkling.method.registry.core.IBridgePlatformType
 import com.tiktok.sparkling.method.registry.core.IDLBridgeMethod
 import com.tiktok.sparkling.method.registry.core.IDLMethodRegistryCacheManager
 import com.tiktok.sparkling.method.registry.core.IBridgeContext
@@ -191,7 +192,7 @@ class SparklingBridgeTest {
         override fun realHandle(
             params: Map<String, Any?>,
             callback: IDLBridgeMethod.Callback,
-            type: BridgePlatformType,
+            type: IBridgePlatformType,
         ) {
             // Test implementation
         }

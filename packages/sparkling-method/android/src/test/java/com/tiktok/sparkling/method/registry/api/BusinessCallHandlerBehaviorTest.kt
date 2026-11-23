@@ -12,6 +12,7 @@ import com.tiktok.sparkling.method.protocol.entity.BridgeCall
 import com.tiktok.sparkling.method.protocol.interfaces.IBridgeMethodCallback
 import com.tiktok.sparkling.method.registry.core.BridgePlatformType
 import com.tiktok.sparkling.method.registry.core.IBridgeContext
+import com.tiktok.sparkling.method.registry.core.IBridgePlatformType
 import com.tiktok.sparkling.method.registry.core.IDLBridgeMethod
 import com.tiktok.sparkling.method.registry.core.annotation.IDLMethodParamField
 import com.tiktok.sparkling.method.registry.core.annotation.IDLMethodParamModel
@@ -218,9 +219,8 @@ class BusinessCallHandlerBehaviorTest {
     private class ModelLessMethod(delegate: IDLBridgeMethod) : IDLBridgeMethod by delegate
 
     private class CapturingMethod(override val name: String) : IDLBridgeMethod {
-        override val compatibility = IDLBridgeMethod.Compatibility.Compatible
         val inputs = mutableListOf<Map<String, Any?>>()
-        val platforms = mutableListOf<BridgePlatformType>()
+        val platforms = mutableListOf<IBridgePlatformType>()
         val contextsAtInvocation = mutableListOf<IBridgeContext?>()
         var currentContext: IBridgeContext? = null
         var handleFailure: Throwable? = null
@@ -239,7 +239,7 @@ class BusinessCallHandlerBehaviorTest {
             val outer: String?
         }
 
-        override fun realHandle(params: Map<String, Any?>, callback: IDLBridgeMethod.Callback, type: BridgePlatformType) {
+        override fun realHandle(params: Map<String, Any?>, callback: IDLBridgeMethod.Callback, type: IBridgePlatformType) {
             inputs.add(params)
             platforms.add(type)
             contextsAtInvocation.add(currentContext)

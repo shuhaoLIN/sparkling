@@ -19,12 +19,10 @@ class IDLMethodRegistryTest {
     // Create concrete test classes for different method names
     private class TestMethod1 : IDLBridgeMethod {
         override val name: String = "testMethod"
-        override val compatibility: IDLBridgeMethod.Compatibility = IDLBridgeMethod.Compatibility.Compatible
-
         override fun realHandle(
             params: Map<String, Any?>,
             callback: IDLBridgeMethod.Callback,
-            type: BridgePlatformType,
+            type: IBridgePlatformType,
         ) {}
 
         override fun setProviderFactory(contextProviderFactory: ContextProviderFactory?) {}
@@ -34,12 +32,10 @@ class IDLMethodRegistryTest {
 
     private class TestMethod2 : IDLBridgeMethod {
         override val name: String = "webMethod"
-        override val compatibility: IDLBridgeMethod.Compatibility = IDLBridgeMethod.Compatibility.Compatible
-
         override fun realHandle(
             params: Map<String, Any?>,
             callback: IDLBridgeMethod.Callback,
-            type: BridgePlatformType,
+            type: IBridgePlatformType,
         ) {}
 
         override fun setProviderFactory(contextProviderFactory: ContextProviderFactory?) {}
@@ -49,12 +45,10 @@ class IDLMethodRegistryTest {
 
     private class TestMethod3 : IDLBridgeMethod {
         override val name: String = "optimizedMethod"
-        override val compatibility: IDLBridgeMethod.Compatibility = IDLBridgeMethod.Compatibility.Compatible
-
         override fun realHandle(
             params: Map<String, Any?>,
             callback: IDLBridgeMethod.Callback,
-            type: BridgePlatformType,
+            type: IBridgePlatformType,
         ) {}
 
         override fun setProviderFactory(contextProviderFactory: ContextProviderFactory?) {}
@@ -64,12 +58,10 @@ class IDLMethodRegistryTest {
 
     private class TestMethod4 : IDLBridgeMethod {
         override val name: String = "findableMethod"
-        override val compatibility: IDLBridgeMethod.Compatibility = IDLBridgeMethod.Compatibility.Compatible
-
         override fun realHandle(
             params: Map<String, Any?>,
             callback: IDLBridgeMethod.Callback,
-            type: BridgePlatformType,
+            type: IBridgePlatformType,
         ) {}
 
         override fun setProviderFactory(contextProviderFactory: ContextProviderFactory?) {}
@@ -79,12 +71,10 @@ class IDLMethodRegistryTest {
 
     private class TestMethod5 : IDLBridgeMethod {
         override val name: String = "existingMethod"
-        override val compatibility: IDLBridgeMethod.Compatibility = IDLBridgeMethod.Compatibility.Compatible
-
         override fun realHandle(
             params: Map<String, Any?>,
             callback: IDLBridgeMethod.Callback,
-            type: BridgePlatformType,
+            type: IBridgePlatformType,
         ) {}
 
         override fun setProviderFactory(contextProviderFactory: ContextProviderFactory?) {}
@@ -94,12 +84,10 @@ class IDLMethodRegistryTest {
 
     private class TestMethod6 : IDLBridgeMethod {
         override val name: String = "method1"
-        override val compatibility: IDLBridgeMethod.Compatibility = IDLBridgeMethod.Compatibility.Compatible
-
         override fun realHandle(
             params: Map<String, Any?>,
             callback: IDLBridgeMethod.Callback,
-            type: BridgePlatformType,
+            type: IBridgePlatformType,
         ) {}
 
         override fun setProviderFactory(contextProviderFactory: ContextProviderFactory?) {}
@@ -109,12 +97,10 @@ class IDLMethodRegistryTest {
 
     private class TestMethod7 : IDLBridgeMethod {
         override val name: String = "method2"
-        override val compatibility: IDLBridgeMethod.Compatibility = IDLBridgeMethod.Compatibility.Compatible
-
         override fun realHandle(
             params: Map<String, Any?>,
             callback: IDLBridgeMethod.Callback,
-            type: BridgePlatformType,
+            type: IBridgePlatformType,
         ) {}
 
         override fun setProviderFactory(contextProviderFactory: ContextProviderFactory?) {}
@@ -124,12 +110,10 @@ class IDLMethodRegistryTest {
 
     private class TestMethod8 : IDLBridgeMethod {
         override val name: String = "nullCacheMethod"
-        override val compatibility: IDLBridgeMethod.Compatibility = IDLBridgeMethod.Compatibility.Compatible
-
         override fun realHandle(
             params: Map<String, Any?>,
             callback: IDLBridgeMethod.Callback,
-            type: BridgePlatformType,
+            type: IBridgePlatformType,
         ) {}
 
         override fun setProviderFactory(contextProviderFactory: ContextProviderFactory?) {}
@@ -139,12 +123,10 @@ class IDLMethodRegistryTest {
 
     private class TestMethod9 : IDLBridgeMethod {
         override val name: String = "localMethod"
-        override val compatibility: IDLBridgeMethod.Compatibility = IDLBridgeMethod.Compatibility.Compatible
-
         override fun realHandle(
             params: Map<String, Any?>,
             callback: IDLBridgeMethod.Callback,
-            type: BridgePlatformType,
+            type: IBridgePlatformType,
         ) {}
 
         override fun setProviderFactory(contextProviderFactory: ContextProviderFactory?) {}
@@ -154,12 +136,10 @@ class IDLMethodRegistryTest {
 
     private class TestMethodEmpty : IDLBridgeMethod {
         override val name: String = ""
-        override val compatibility: IDLBridgeMethod.Compatibility = IDLBridgeMethod.Compatibility.Compatible
-
         override fun realHandle(
             params: Map<String, Any?>,
             callback: IDLBridgeMethod.Callback,
-            type: BridgePlatformType,
+            type: IBridgePlatformType,
         ) {}
 
         override fun setProviderFactory(contextProviderFactory: ContextProviderFactory?) {}

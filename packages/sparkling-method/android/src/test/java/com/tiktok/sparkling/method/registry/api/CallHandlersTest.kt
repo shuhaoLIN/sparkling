@@ -5,13 +5,18 @@ package com.tiktok.sparkling.method.registry.api
 
 import com.tiktok.sparkling.method.protocol.entity.Platform
 import com.lynx.react.bridge.JavaOnlyMap
+import com.lynx.react.bridge.ReadableMap
 import com.tiktok.sparkling.method.protocol.BridgeContext
 import com.tiktok.sparkling.method.protocol.entity.BridgeCall
 import com.tiktok.sparkling.method.protocol.interfaces.IBridgeMethodCallback
 import com.tiktok.sparkling.method.registry.core.BridgePlatformType
 import com.tiktok.sparkling.method.registry.core.IBridgeContext
+import com.tiktok.sparkling.method.registry.core.IBridgePlatformType
 import com.tiktok.sparkling.method.registry.core.IDLBridgeMethod
+import com.tiktok.sparkling.method.registry.core.annotation.IDLMethodParamField
+import com.tiktok.sparkling.method.registry.core.annotation.IDLMethodParamModel
 import com.tiktok.sparkling.method.registry.core.model.context.ContextProviderFactory
+import com.tiktok.sparkling.method.registry.core.model.idl.IDLMethodBaseParamModel
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -29,13 +34,20 @@ import org.robolectric.annotation.Config
  */
 class CallHandlersStubCompatibleBridge : IDLBridgeMethod {
     override val name: String = "stub.compatible.bridge"
-    override val compatibility: IDLBridgeMethod.Compatibility =
-        IDLBridgeMethod.Compatibility.Compatible
+
+    @IDLMethodParamModel
+    interface Params : IDLMethodBaseParamModel {
+        @get:IDLMethodParamField(keyPath = "k")
+        val k: String?
+
+        @get:IDLMethodParamField(keyPath = "kind")
+        val kind: String?
+    }
 
     override fun realHandle(
         params: Map<String, Any?>,
         callback: IDLBridgeMethod.Callback,
-        type: BridgePlatformType,
+        type: IBridgePlatformType,
     ) {
         callback.invoke(
             mapOf(
@@ -119,12 +131,10 @@ class CallHandlersTest {
 
         handler.handle(ctx, call, callback)
 
-        @Suppress("UNCHECKED_CAST")
-        val result = callback.lastResult as Map<String, Any?>
-        assertEquals(IDLBridgeMethod.SUCCESS, result[IDLBridgeMethod.PARAM_CODE])
-        @Suppress("UNCHECKED_CAST")
-        val echoed = result["echo"] as Map<String, Any?>
-        assertEquals("v", echoed["k"])
+        val result = callback.lastResult as JSONObject
+        assertEquals(IDLBridgeMethod.SUCCESS, result.getInt(IDLBridgeMethod.PARAM_CODE))
+        val echoed = result.getJSONObject("echo")
+        assertEquals("v", echoed.getString("k"))
     }
 
     @Test
@@ -148,9 +158,8 @@ class CallHandlersTest {
 
         handler.handle(ctx, call, callback)
 
-        @Suppress("UNCHECKED_CAST")
-        val result = callback.lastResult as Map<String, Any?>
-        assertEquals(IDLBridgeMethod.SUCCESS, result[IDLBridgeMethod.PARAM_CODE])
+        val result = callback.lastResult as ReadableMap
+        assertEquals(IDLBridgeMethod.SUCCESS, result.getInt(IDLBridgeMethod.PARAM_CODE))
     }
 
     @Test
@@ -172,9 +181,7 @@ class CallHandlersTest {
 
         handler.handle(ctx, call, callback)
 
-        @Suppress("UNCHECKED_CAST")
-        val result = callback.lastResult as Map<String, Any?>
-        assertEquals(IDLBridgeMethod.SUCCESS, result[IDLBridgeMethod.PARAM_CODE])
+        assertNull(callback.lastResult)
     }
 
     @Test

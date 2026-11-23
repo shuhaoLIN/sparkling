@@ -8,6 +8,7 @@ import com.lynx.react.bridge.JavaOnlyMap
 import com.tiktok.sparkling.method.protocol.entity.BridgeCall
 import com.tiktok.sparkling.method.registry.core.BridgePlatformType
 import com.tiktok.sparkling.method.registry.core.IBridgeContext
+import com.tiktok.sparkling.method.registry.core.IBridgePlatformType
 import com.tiktok.sparkling.method.registry.core.IDLBridgeMethod
 import com.tiktok.sparkling.method.registry.core.model.context.ContextProviderFactory
 import org.json.JSONObject
@@ -26,7 +27,7 @@ class JsonAndReadableMapProcessorTest {
         override fun realHandle(
             params: Map<String, Any?>,
             callback: IDLBridgeMethod.Callback,
-            type: BridgePlatformType,
+            type: IBridgePlatformType,
         ) = Unit
 
         override fun setProviderFactory(contextProviderFactory: ContextProviderFactory?) = Unit

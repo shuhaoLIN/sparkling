@@ -174,7 +174,7 @@ class IDLMethodRegistryBehaviorTest {
     }
 
     open class NamedMethod(override val name: String) : IDLBridgeMethod {
-        override fun realHandle(params: Map<String, Any?>, callback: IDLBridgeMethod.Callback, type: BridgePlatformType) = Unit
+        override fun realHandle(params: Map<String, Any?>, callback: IDLBridgeMethod.Callback, type: IBridgePlatformType) = Unit
         override fun setProviderFactory(contextProviderFactory: ContextProviderFactory?) = Unit
         override fun setBridgeContext(bridgeContext: IBridgeContext) = Unit
     }

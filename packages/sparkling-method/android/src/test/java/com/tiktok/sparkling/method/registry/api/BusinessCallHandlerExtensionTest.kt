@@ -12,6 +12,7 @@ import com.tiktok.sparkling.method.protocol.entity.BridgeCall
 import com.tiktok.sparkling.method.protocol.interfaces.IBridgeMethodCallback
 import com.tiktok.sparkling.method.registry.core.BridgePlatformType
 import com.tiktok.sparkling.method.registry.core.IBridgeContext
+import com.tiktok.sparkling.method.registry.core.IBridgePlatformType
 import com.tiktok.sparkling.method.registry.core.IDLBridgeMethod
 import com.tiktok.sparkling.method.registry.core.IDLMethodProvider
 import com.tiktok.sparkling.method.registry.core.IDLMethodRegistry
@@ -191,7 +192,7 @@ class BusinessCallHandlerExtensionTest {
 
         override fun setBridgeContext(bridgeContext: IBridgeContext) { receivedContext = bridgeContext }
         override fun setProviderFactory(contextProviderFactory: ContextProviderFactory?) = Unit
-        override fun realHandle(params: Map<String, Any?>, callback: IDLBridgeMethod.Callback, type: BridgePlatformType) {
+        override fun realHandle(params: Map<String, Any?>, callback: IDLBridgeMethod.Callback, type: IBridgePlatformType) {
             receivedParams = params
             callback.invoke(mapOf("code" to IDLBridgeMethod.SUCCESS))
         }

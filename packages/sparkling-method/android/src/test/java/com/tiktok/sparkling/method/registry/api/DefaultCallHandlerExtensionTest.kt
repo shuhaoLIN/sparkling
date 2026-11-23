@@ -12,11 +12,15 @@ import com.tiktok.sparkling.method.protocol.entity.BridgeCall
 import com.tiktok.sparkling.method.protocol.interfaces.IBridgeMethodCallback
 import com.tiktok.sparkling.method.registry.core.BridgePlatformType
 import com.tiktok.sparkling.method.registry.core.IBridgeContext
+import com.tiktok.sparkling.method.registry.core.IBridgePlatformType
 import com.tiktok.sparkling.method.registry.core.IDLBridgeMethod
 import com.tiktok.sparkling.method.registry.core.IDLMethodProvider
 import com.tiktok.sparkling.method.registry.core.IDLMethodRegistry
 import com.tiktok.sparkling.method.registry.core.LocalBridge
+import com.tiktok.sparkling.method.registry.core.annotation.IDLMethodParamField
+import com.tiktok.sparkling.method.registry.core.annotation.IDLMethodParamModel
 import com.tiktok.sparkling.method.registry.core.model.context.ContextProviderFactory
+import com.tiktok.sparkling.method.registry.core.model.idl.IDLMethodBaseParamModel
 import io.mockk.every
 import io.mockk.mockk
 import org.json.JSONObject
@@ -60,7 +64,7 @@ class DefaultCallHandlerExtensionTest {
         handler.handle(context, call, callback)
         assertSame(sdkContext, fromFactory.receivedContext)
         assertEquals(mapOf("value" to "host"), fromFactory.receivedParams)
-        assertSame(fromFactory.reply, callback.result)
+        assertEquals(IDLBridgeMethod.SUCCESS, (callback.result as JSONObject).getInt("code"))
 
         assertFalse(handler.isReleased())
         handler.onRelease()
@@ -93,7 +97,7 @@ class DefaultCallHandlerExtensionTest {
         handler.handle(context, call, callback)
 
         assertEquals(mapOf("value" to "injected"), method.receivedParams)
-        assertSame(method.reply, callback.result)
+        assertEquals(IDLBridgeMethod.SUCCESS, (callback.result as ReadableMap).getInt("code"))
         assertSame(method, handler.getBridge(context, "custom"))
         assertEquals(listOf(BridgePlatformType.LYNX to "custom"), lookups)
     }
@@ -155,15 +159,20 @@ class DefaultCallHandlerExtensionTest {
 
     class TrackingMethod : IDLBridgeMethod {
         override val name: String = "tracking"
-        override val compatibility: IDLBridgeMethod.Compatibility = IDLBridgeMethod.Compatibility.Compatible
         val reply = mapOf("code" to IDLBridgeMethod.SUCCESS)
         var receivedContext: IBridgeContext? = null
         var receivedParams: Map<String, Any?>? = null
         var releaseCalls = 0
 
+        @IDLMethodParamModel
+        interface Params : IDLMethodBaseParamModel {
+            @get:IDLMethodParamField(keyPath = "value")
+            val value: String?
+        }
+
         override fun setBridgeContext(bridgeContext: IBridgeContext) { receivedContext = bridgeContext }
         override fun setProviderFactory(contextProviderFactory: ContextProviderFactory?) = Unit
-        override fun realHandle(params: Map<String, Any?>, callback: IDLBridgeMethod.Callback, type: BridgePlatformType) {
+        override fun realHandle(params: Map<String, Any?>, callback: IDLBridgeMethod.Callback, type: IBridgePlatformType) {
             receivedParams = params
             callback.invoke(reply)
         }

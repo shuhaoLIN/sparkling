@@ -37,7 +37,7 @@ class BaseProcessorTest {
         override fun realHandle(
             params: Map<String, Any?>,
             callback: IDLBridgeMethod.Callback,
-            type: BridgePlatformType,
+            type: IBridgePlatformType,
         ) {
             realHandleCalled = true
             throwOnHandle?.let { throw it }

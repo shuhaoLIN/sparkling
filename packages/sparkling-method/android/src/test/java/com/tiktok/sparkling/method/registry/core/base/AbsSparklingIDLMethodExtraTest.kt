@@ -121,13 +121,11 @@ class AbsSparklingIDLMethodExtraTest {
 
     @Test
     fun completionBlockProxyForwardsSuccessAndFailure() {
-        val proxy =
-            method.createCompletionBlockProxy<TestMethod.TestResultModel>(
-                this::class.java.classLoader!!,
-                callbackOf(),
-            )
-        proxy.onSuccess(TestMethod.TestResultModel("ok"), "done")
-        proxy.onFailure(7, "boom", TestMethod.TestResultModel("nope"))
+        method.customHandle = { callback ->
+            callback.onSuccess(TestMethod.TestResultModel("ok"), "done")
+            callback.onFailure(7, "boom", TestMethod.TestResultModel("nope"))
+        }
+        method.realHandle(emptyMap(), callbackOf(), BridgePlatformType.WEB)
 
         assertEquals(2, collected.size)
         assertEquals(IDLBridgeMethod.SUCCESS, collected[0][IDLBridgeMethod.PARAM_CODE])
@@ -136,12 +134,10 @@ class AbsSparklingIDLMethodExtraTest {
 
     @Test
     fun completionBlockProxyHandlesNullDataInFailure() {
-        val proxy =
-            method.createCompletionBlockProxy<TestMethod.TestResultModel>(
-                this::class.java.classLoader!!,
-                callbackOf(),
-            )
-        proxy.onFailure(99, "explode", null)
+        method.customHandle = { callback ->
+            callback.onFailure(99, "explode", null)
+        }
+        method.realHandle(emptyMap(), callbackOf(), BridgePlatformType.WEB)
         assertEquals(1, collected.size)
         assertEquals(99, collected[0][IDLBridgeMethod.PARAM_CODE])
     }
@@ -209,6 +205,7 @@ class AbsSparklingIDLMethodExtraTest {
         var lastToStringResult: String? = null
         var captureToJsonResult = false
         var captureToStringResult = false
+        var customHandle: ((CompletionBlock<TestResultModel>) -> Unit)? = null
 
         override fun handle(
             params: TestParamModel,
@@ -220,6 +217,11 @@ class AbsSparklingIDLMethodExtraTest {
             }
             if (captureToStringResult) {
                 lastToStringResult = params.toString()
+            }
+            val action = customHandle
+            if (action != null) {
+                action(callback)
+                return
             }
             callback.onSuccess(TestResultModel("ok"), "done")
         }

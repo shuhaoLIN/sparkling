@@ -12,8 +12,12 @@ import com.tiktok.sparkling.method.protocol.entity.BridgeCall
 import com.tiktok.sparkling.method.protocol.interfaces.IBridgeMethodCallback
 import com.tiktok.sparkling.method.registry.core.BridgePlatformType
 import com.tiktok.sparkling.method.registry.core.IBridgeContext
+import com.tiktok.sparkling.method.registry.core.IBridgePlatformType
 import com.tiktok.sparkling.method.registry.core.IDLBridgeMethod
+import com.tiktok.sparkling.method.registry.core.annotation.IDLMethodParamField
+import com.tiktok.sparkling.method.registry.core.annotation.IDLMethodParamModel
 import com.tiktok.sparkling.method.registry.core.model.context.ContextProviderFactory
+import com.tiktok.sparkling.method.registry.core.model.idl.IDLMethodBaseParamModel
 import io.mockk.every
 import io.mockk.mockk
 import org.json.JSONObject
@@ -59,13 +63,13 @@ class DefaultCallHandlerBehaviorTest {
         assertEquals(1, webCreations)
         assertEquals(0, lynxCreations)
         assertEquals(listOf(firstContext, secondContext), method.contextsAtInvocation)
-        assertEquals(listOf(BridgePlatformType.ALL, BridgePlatformType.ALL), method.platforms)
+        assertEquals(listOf(BridgePlatformType.WEB, BridgePlatformType.WEB), method.platforms)
         assertEquals(2, callback.results.size)
-        callback.results.forEach { assertSame(method.result, it) }
+        callback.results.forEach { assertEquals(IDLBridgeMethod.SUCCESS, (it as JSONObject).getInt("code")) }
     }
 
     @Test
-    fun compatibleReadableMapsUnwrapDataButJsonKeepsItsDataProperty() {
+    fun readableMapsUnwrapDataButJsonKeepsItsDataProperty() {
         val handler = DefaultCallHandler()
         val method = CapturingMethod("payload")
         handler.registerLocalIDLMethod("payload") { method }
@@ -88,11 +92,13 @@ class DefaultCallHandlerBehaviorTest {
         assertEquals(setOf("data", "outer"), method.inputs[2].keys)
         assertEquals("kept", method.inputs[2]["outer"])
         assertEquals(3, callback.results.size)
-        callback.results.forEach { assertSame(method.result, it) }
+        assertEquals(IDLBridgeMethod.SUCCESS, (callback.results[0] as ReadableMap).getInt("code"))
+        assertEquals(IDLBridgeMethod.SUCCESS, (callback.results[1] as ReadableMap).getInt("code"))
+        assertEquals(IDLBridgeMethod.SUCCESS, (callback.results[2] as JSONObject).getInt("code"))
     }
 
     @Test
-    fun compatibleMethodFailuresPropagateWithoutASyntheticCallback() {
+    fun methodFailuresBecomeProcessorErrors() {
         val handler = DefaultCallHandler()
         val failure = IllegalStateException("method failed")
         val method = CapturingMethod("throwing").apply { handleFailure = failure }
@@ -100,34 +106,24 @@ class DefaultCallHandlerBehaviorTest {
         val bridgeContext = context(BridgePlatformType.WEB)
         val callback = CapturingCallback()
 
-        val thrown = runCatching {
-            handler.handle(bridgeContext, call(bridgeContext, "throwing", JSONObject()), callback)
-        }.exceptionOrNull()
+        handler.handle(bridgeContext, call(bridgeContext, "throwing", JSONObject()), callback)
 
-        assertSame(failure, thrown)
         assertEquals(1, method.inputs.size)
-        assertTrue(callback.results.isEmpty())
+        assertEquals(IDLBridgeMethod.UNKNOWN_ERROR, (callback.results.single() as JSONObject).getInt("code"))
     }
 
     @Test
-    fun unsupportedParamsAreEmptyForCompatibleMethodsAndIgnoredForIdlMethods() {
+    fun unsupportedParamsAreIgnoredAfterInjectingContext() {
         val handler = DefaultCallHandler()
         val sdkContext = sdkContext()
         handler.setBridgeContext(sdkContext)
-        val compatible = CapturingMethod("compatible")
-        val idl = CapturingMethod("idl", compatible = false)
-        handler.registerLocalIDLMethod("compatible") { compatible }
+        val idl = CapturingMethod("idl")
         handler.registerLocalIDLMethod("idl") { idl }
         val bridgeContext = context(BridgePlatformType.LYNX)
-        val compatibleCallback = CapturingCallback()
         val idlCallback = CapturingCallback()
 
-        handler.handle(bridgeContext, call(bridgeContext, "compatible", "unsupported"), compatibleCallback)
         handler.handle(bridgeContext, call(bridgeContext, "idl", "unsupported"), idlCallback)
 
-        assertEquals(listOf(emptyMap<String, Any?>()), compatible.inputs)
-        assertEquals(listOf(BridgePlatformType.ALL), compatible.platforms)
-        assertSame(compatible.result, compatibleCallback.results.single())
         assertSame(sdkContext, idl.currentContext)
         assertTrue(idl.inputs.isEmpty())
         assertTrue(idlCallback.results.isEmpty())
@@ -137,7 +133,8 @@ class DefaultCallHandlerBehaviorTest {
     fun idlProcessorErrorsKeepTheJsonAndReadableMapResultCarriers() {
         val handler = DefaultCallHandler()
         // This method intentionally has no generated parameter model.
-        val method = CapturingMethod("no.model", compatible = false)
+        val delegate = CapturingMethod("no.model")
+        val method = ModelLessMethod(delegate)
         handler.registerLocalIDLMethod("no.model") { method }
         val bridgeContext = context(BridgePlatformType.WEB)
         val jsonCallback = CapturingCallback()
@@ -154,7 +151,7 @@ class DefaultCallHandlerBehaviorTest {
         val lynxError = lynxCallback.results.single() as ReadableMap
         assertEquals(IDLBridgeMethod.ANNOTATION_ERROR, jsonError.getInt("code"))
         assertEquals(IDLBridgeMethod.ANNOTATION_ERROR, lynxError.getInt("code"))
-        assertTrue(method.inputs.isEmpty())
+        assertTrue(delegate.inputs.isEmpty())
     }
 
     @Test
@@ -177,7 +174,7 @@ class DefaultCallHandlerBehaviorTest {
         handler.handle(bridgeContext, call(bridgeContext, "release", JSONObject()), callback)
         assertEquals(2, created.size)
         assertNotSame(original, created[1])
-        assertSame(created[1].result, callback.results.single())
+        assertEquals(IDLBridgeMethod.SUCCESS, (callback.results.single() as JSONObject).getInt("code"))
         assertTrue(handler.isReleased())
     }
 
@@ -224,10 +221,11 @@ class DefaultCallHandlerBehaviorTest {
         }
     }
 
-    private class CapturingMethod(override val name: String, compatible: Boolean = true) : IDLBridgeMethod {
-        override val compatibility = if (compatible) IDLBridgeMethod.Compatibility.Compatible else IDLBridgeMethod.Compatibility.InCompatible
+    private class ModelLessMethod(delegate: IDLBridgeMethod) : IDLBridgeMethod by delegate
+
+    private class CapturingMethod(override val name: String) : IDLBridgeMethod {
         val inputs = mutableListOf<Map<String, Any?>>()
-        val platforms = mutableListOf<BridgePlatformType>()
+        val platforms = mutableListOf<IBridgePlatformType>()
         val contextsAtInvocation = mutableListOf<IBridgeContext?>()
         val result: Map<String, Any?> = mapOf("code" to IDLBridgeMethod.SUCCESS, "data" to mapOf("value" to name))
         var currentContext: IBridgeContext? = null
@@ -235,7 +233,19 @@ class DefaultCallHandlerBehaviorTest {
         var releaseFailure: Throwable? = null
         var releaseCalls = 0
 
-        override fun realHandle(params: Map<String, Any?>, callback: IDLBridgeMethod.Callback, type: BridgePlatformType) {
+        @IDLMethodParamModel
+        interface Params : IDLMethodBaseParamModel {
+            @get:IDLMethodParamField(keyPath = "data")
+            val data: Map<String, Any>?
+
+            @get:IDLMethodParamField(keyPath = "value")
+            val value: Any?
+
+            @get:IDLMethodParamField(keyPath = "outer")
+            val outer: String?
+        }
+
+        override fun realHandle(params: Map<String, Any?>, callback: IDLBridgeMethod.Callback, type: IBridgePlatformType) {
             inputs.add(params)
             platforms.add(type)
             contextsAtInvocation.add(currentContext)

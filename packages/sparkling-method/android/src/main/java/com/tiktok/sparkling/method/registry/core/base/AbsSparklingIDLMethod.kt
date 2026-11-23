@@ -5,10 +5,15 @@
 package com.tiktok.sparkling.method.registry.core.base
 
 import android.webkit.WebView
+import com.lynx.tasm.LynxView
+import com.tiktok.sparkling.method.protocol.BridgeContext
+import com.tiktok.sparkling.method.registry.core.BridgePlatformType
 import com.tiktok.sparkling.method.registry.core.IBridgeContext
+import com.tiktok.sparkling.method.registry.core.IBridgePlatformType
 import com.tiktok.sparkling.method.registry.core.IDLBridgeMethod
 import com.tiktok.sparkling.method.registry.core.IDLMethodRegistryCacheManager
-import com.tiktok.sparkling.method.registry.core.BridgePlatformType
+import com.tiktok.sparkling.method.registry.core.annotation.IDLMethodParamField
+import com.tiktok.sparkling.method.registry.core.annotation.IDLMethodParamModel
 import com.tiktok.sparkling.method.registry.core.exception.IDLMethodException
 import com.tiktok.sparkling.method.registry.core.model.context.ContextProviderFactory
 import com.tiktok.sparkling.method.registry.core.model.idl.CompletionBlock
@@ -19,18 +24,23 @@ import com.tiktok.sparkling.method.registry.core.model.idl.IDLMethodBaseResultMo
 import com.tiktok.sparkling.method.registry.core.model.idl.getValue
 import com.tiktok.sparkling.method.registry.core.model.idl.toPrimitiveOrJSON
 import com.tiktok.sparkling.method.registry.core.utils.JsonUtils
-import com.lynx.tasm.LynxView
-import com.tiktok.sparkling.method.protocol.BridgeContext
-import com.tiktok.sparkling.method.registry.core.annotation.IDLMethodParamField
-import com.tiktok.sparkling.method.registry.core.annotation.IDLMethodParamModel
 import org.json.JSONArray
 import org.json.JSONObject
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Method
 import java.lang.reflect.Proxy
 
-abstract class AbsSparklingIDLMethod<INPUT, OUTPUT> : IDLBridgeMethod where INPUT : IDLMethodBaseParamModel, OUTPUT : IDLMethodBaseResultModel {
-    private var bridgeContext: IBridgeContext? = null
+/**
+ * Turns the map passed by JS into a param proxy and hands a [CompletionBlock] to [dispatch],
+ * which delegates to [handle] by default.
+ *
+ * Host subclasses may override [dispatch] to adapt to host-specific handle signatures, and
+ * override [notifyBridgeImplHandleStart] / [notifyBridgeImplHandleEnd] when looking up a host
+ * [BridgeContext] subclass.
+ */
+abstract class AbsSparklingIDLMethod<INPUT, OUTPUT> : IDLBridgeMethod
+    where INPUT : IDLMethodBaseParamModel, OUTPUT : IDLMethodBaseResultModel {
+    protected var methodBridgeContext: IBridgeContext? = null
     var contextProviderFactory: ContextProviderFactory? = null
 
     override fun setProviderFactory(contextProviderFactory: ContextProviderFactory?) {
@@ -38,10 +48,10 @@ abstract class AbsSparklingIDLMethod<INPUT, OUTPUT> : IDLBridgeMethod where INPU
     }
 
     override fun setBridgeContext(bridgeContext: IBridgeContext) {
-        this.bridgeContext = bridgeContext
+        this.methodBridgeContext = bridgeContext
     }
 
-    fun getSDKContext(): IBridgeContext? = this.bridgeContext
+    open fun getSDKContext(): IBridgeContext? = this.methodBridgeContext
 
     @Deprecated("Please use [getSDKContext] ", ReplaceWith(""))
     open fun <T> provideContext(clz: Class<T>): T? = contextProviderFactory?.provideInstance(clz)
@@ -140,16 +150,27 @@ abstract class AbsSparklingIDLMethod<INPUT, OUTPUT> : IDLBridgeMethod where INPU
         }
     }
 
+    /** Handles a bridge call with the typed parameter proxy and completion block. */
     abstract fun handle(
         params: INPUT,
         callback: CompletionBlock<OUTPUT>,
         type: BridgePlatformType,
     )
 
+    protected open fun dispatch(
+        params: INPUT,
+        callback: CompletionBlock<OUTPUT>,
+        bridgeCallback: IDLBridgeMethod.Callback,
+        type: IBridgePlatformType,
+    ) {
+        val platformType = (type as? BridgePlatformType) ?: BridgePlatformType.ALL
+        handle(params, callback, platformType)
+    }
+
     override fun realHandle(
         params: Map<String, Any?>,
         callback: IDLBridgeMethod.Callback,
-        type: BridgePlatformType,
+        type: IBridgePlatformType,
     ) {
         val paramModel = createParamModelProxy(params)
         if (paramModel == null) {
@@ -157,23 +178,31 @@ abstract class AbsSparklingIDLMethod<INPUT, OUTPUT> : IDLBridgeMethod where INPU
             return
         }
 
-        val completionBlock = createCompletionBlockProxy<OUTPUT>(this.javaClass.classLoader!!, callback)
+        val completionBlock = createSparklingCompletionBlock<OUTPUT>(callback)
+        notifyBridgeImplHandleStart()
+        dispatch(paramModel, completionBlock, callback, type)
+        notifyBridgeImplHandleEnd()
+    }
+
+    protected open fun notifyBridgeImplHandleStart() {
         getSDKContext()?.getObject(BridgeContext::class.java)?.let { bridgeContext ->
             bridgeContext.bridgeLifeClientImp.onBridgeImplHandleStart(null, bridgeContext)
         }
-        this.handle(paramModel, completionBlock, type)
+    }
+
+    protected open fun notifyBridgeImplHandleEnd() {
         getSDKContext()?.getObject(BridgeContext::class.java)?.let { bridgeContext ->
             bridgeContext.bridgeLifeClientImp.onBridgeImplHandleEnd(null, bridgeContext)
         }
     }
 
     @Throws(IllegalStateException::class, IDLMethodException::class)
-    private fun createParamModelProxy(dataSource: Map<String, Any?>): INPUT? {
+    protected fun createParamModelProxy(dataSource: Map<String, Any?>): INPUT? {
         val clazz = getParamsClazz() ?: throw IllegalStateException("params class is null")
         return Proxy.newProxyInstance(
             clazz.classLoader,
             arrayOf(clazz),
-            InvocationHandler { proxy, method, args ->
+            InvocationHandler { _, method, _ ->
                 if (method.name.equals("toJSON")) {
                     return@InvocationHandler runCatching {
                         return@runCatching JSONObject().apply {
@@ -213,9 +242,9 @@ abstract class AbsSparklingIDLMethod<INPUT, OUTPUT> : IDLBridgeMethod where INPU
                                         }
 
                                         else -> {
-                                            // nested class type
-                                            if (it.value is IDLMethodBaseModel) {
-                                                (it.value as IDLMethodBaseModel).toJSON()
+                                            val nested = it.value
+                                            if (nested is IDLMethodBaseModel) {
+                                                nested.toJSON()
                                             } else {
                                                 null
                                             }
@@ -242,7 +271,7 @@ abstract class AbsSparklingIDLMethod<INPUT, OUTPUT> : IDLBridgeMethod where INPU
         ) as INPUT
     }
 
-    private fun getPropertyName(method: Method): String {
+    protected open fun getPropertyName(method: Method): String {
         val pool =
             (
                 getSDKContext()?.containerID?.let {
@@ -257,11 +286,10 @@ abstract class AbsSparklingIDLMethod<INPUT, OUTPUT> : IDLBridgeMethod where INPU
         }
 
         val annotationModel = method.getAnnotation(IDLMethodParamField::class.java)
-        val propertyName = annotationModel.keyPath
-        return propertyName
+        return requireNotNull(annotationModel).keyPath
     }
 
-    private fun getParamsClazz(): Class<*>? {
+    protected open fun getParamsClazz(): Class<*>? {
         val paramClass =
             (
                 getSDKContext()?.containerID?.let {
@@ -293,8 +321,7 @@ abstract class AbsSparklingIDLMethod<INPUT, OUTPUT> : IDLBridgeMethod where INPU
         return paramModelList.firstOrNull()
     }
 
-    fun <OUTPUT> createCompletionBlockProxy(
-        classLoader: ClassLoader,
+    private fun <OUTPUT> createSparklingCompletionBlock(
         callback: IDLBridgeMethod.Callback,
     ): CompletionBlock<OUTPUT> where OUTPUT : IDLMethodBaseResultModel =
         object : CompletionBlock<OUTPUT> {

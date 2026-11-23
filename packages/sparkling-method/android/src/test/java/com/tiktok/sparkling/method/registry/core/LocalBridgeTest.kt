@@ -26,7 +26,7 @@ class LocalBridgeTest {
         override fun realHandle(
             params: Map<String, Any?>,
             callback: IDLBridgeMethod.Callback,
-            type: BridgePlatformType,
+            type: IBridgePlatformType,
         ) {
             // Test implementation
         }
@@ -249,7 +249,7 @@ class LocalBridgeTest {
             override fun realHandle(
                 params: Map<String, Any?>,
                 callback: IDLBridgeMethod.Callback,
-                type: BridgePlatformType,
+                type: IBridgePlatformType,
             ) {
                 // Test implementation
             }
