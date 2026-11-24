@@ -8,13 +8,17 @@ import android.app.Activity
 import android.content.Context
 import android.view.View
 import com.tiktok.sparkling.method.registry.api.SparklingBridge
-import com.tiktok.sparkling.method.registry.core.model.context.IContextProvider
 import com.tiktok.sparkling.method.registry.core.model.context.ContextHolder
+import com.tiktok.sparkling.method.registry.core.model.context.IContextProvider
 import com.tiktok.sparkling.method.registry.core.model.context.WeakContextHolder
 import com.tiktok.sparkling.method.registry.core.utils.IDLMethodHelper
 import org.json.JSONObject
 import java.lang.ref.WeakReference
 
+/**
+ * Container context a registered method can read while handling a call: the bridge instance, the
+ * view, and host objects bound onto the container.
+ */
 interface IBridgeContext {
     val bridge: SparklingBridge?
     val view: View?
@@ -22,22 +26,27 @@ interface IBridgeContext {
     val containerID: String?
     val context: Context?
 
+    /** Sends an event to the JS runtime attached to this container. */
     fun sendEvent(
         name: String,
         obj: JSONObject,
     )
 
+    /** Looks up a registered host object by its class. */
     fun <T> getObject(clazz: Class<T>): T?
 }
 
+/** Delegate that dispatches native-to-JS events for a container context. */
 interface JSEventDelegate {
+    /** Sends a JS event with optional JSON payload. */
     fun sendJSEvent(
         eventName: String,
         params: JSONObject?,
     )
 }
 
-class BridgeContextWrapper : IBridgeContext {
+/** Default [IBridgeContext] implementation holding weak container references and host providers. */
+open class BridgeContextWrapper : IBridgeContext {
     private val providers: MutableMap<Class<*>, IContextProvider<*>> = mutableMapOf()
     private var _view: WeakReference<View?>? = null
     private var _activity: WeakReference<Activity?>? = null
@@ -103,28 +112,33 @@ class BridgeContextWrapper : IBridgeContext {
         providers.putAll(map)
     }
 
+    /** Sets the JS event delegate once if not already set. */
     fun setJSEventDelegate(delegate: JSEventDelegate) {
         if (_jsEvent == null) {
             _jsEvent = delegate
         }
     }
 
+    /** Binds the container view weakly if not already set. */
     fun setView(view: View?) {
         if (_view == null) {
             _view = WeakReference(view)
         }
     }
 
+    /** Sets the container identifier. */
     fun setContainerID(containerID: String?) {
         _containerID = containerID
     }
 
+    /** Binds the owner activity weakly if none is currently alive. */
     fun setOwnerActivity(activity: Activity?) {
         if (_activity?.get() == null) {
             _activity = WeakReference(activity)
         }
     }
 
+    /** Binds the [SparklingBridge] weakly if none is currently alive. */
     fun setBridge(bridge: SparklingBridge) {
         if (__bridge?.get() == null) {
             __bridge = WeakReference(bridge)
@@ -141,6 +155,7 @@ class BridgeContextWrapper : IBridgeContext {
     override val context: Context?
         get() = _view?.get()?.context ?: getObject(Context::class.java)
 
+    /** Dispatches an event through the configured [JSEventDelegate]. */
     override fun sendEvent(
         name: String,
         obj: JSONObject,
@@ -151,5 +166,6 @@ class BridgeContextWrapper : IBridgeContext {
     override val containerID: String?
         get() = _containerID
 
+    /** Looks up a registered host object by its class. */
     override fun <T> getObject(clazz: Class<T>): T? = providers[clazz]?.provideInstance() as T?
 }

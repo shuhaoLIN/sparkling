@@ -1,9 +1,11 @@
 // Copyright (c) 2022 TikTok Pte. Ltd.
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
+
 package com.tiktok.sparkling.method.registry.api.util
 
-import com.tiktok.sparkling.method.registry.api.stringify
+import com.tiktok.sparkling.method.protocol.utils.LogUtils
+import com.tiktok.sparkling.method.registry.api.util.TAG
 import com.lynx.jsbridge.Arguments
 import com.lynx.react.bridge.Dynamic
 import com.lynx.react.bridge.JavaOnlyArray
@@ -14,14 +16,34 @@ import com.lynx.react.bridge.ReadableMap
 import com.lynx.react.bridge.ReadableType
 import com.lynx.react.bridge.WritableArray
 import com.lynx.react.bridge.WritableMap
+import com.tiktok.sparkling.method.registry.api.stringify
 import com.tiktok.sparkling.method.registry.core.XReadableArray
 import com.tiktok.sparkling.method.registry.core.XReadableMap
 import com.tiktok.sparkling.method.registry.core.XReadableType
 import org.json.JSONArray
 import org.json.JSONObject
 
+/**
+ * The conversion [IConvertUtils] describes.
+ *
+ * An `object` rather than something a host subclasses: the two switches above are all that ever
+ * varied between hosts, and a host that resolves this through a service framework registers a
+ * wrapper delegating here rather than a subclass.
+ */
 object DataConvertUtils : IConvertUtils {
+
+    /**
+     * Whether a `Long` keeps its type instead of widening to `Double`.
+     *
+     * A property rather than a read of some setting, because this is the shared layer and the
+     * host decides. A host can install its own value at startup; left alone it stays off, which is
+     * what the conversion did before either switch existed.
+     */
+    @Volatile
     var disableLongToDouble = false
+
+    /** Whether a `Long` input keeps its type instead of collapsing to `Int` or `Double`. */
+    @Volatile
     var newInputTypeChange = false
 
     override fun toStringOrJson(data: Any?): String {
@@ -48,43 +70,19 @@ object DataConvertUtils : IConvertUtils {
                     }
                 }
 
-                is Float -> {
-                    jsonObject.put(key, value.toDouble())
-                }
-
-                is Int -> {
-                    jsonObject.put(key, value)
-                }
-
-                is Double -> {
-                    jsonObject.put(key, value)
-                }
-
-                is String -> {
-                    jsonObject.put(key, value)
-                }
-
-                is Boolean -> {
-                    jsonObject.put(key, value)
-                }
-
-                is JSONObject -> {
-                    jsonObject.put(key, value)
-                }
-
-                is JSONArray -> {
-                    jsonObject.put(key, value)
-                }
-
-                is PiperData -> {
-                    jsonObject.put(key, value)
-                }
-
+                is Float -> jsonObject.put(key, value.toDouble())
+                is Int -> jsonObject.put(key, value)
+                is Double -> jsonObject.put(key, value)
+                is String -> jsonObject.put(key, value)
+                is Boolean -> jsonObject.put(key, value)
+                is JSONObject -> jsonObject.put(key, value)
+                is JSONArray -> jsonObject.put(key, value)
+                is PiperData -> jsonObject.put(key, value)
                 is Map<*, *> -> {
                     try {
                         jsonObject.put(key, mapSupportPiperdataToJSON(value as Map<String, Any>))
                     } catch (e: Exception) {
-                        // ignore
+                        //ignore
                     }
                 }
 
@@ -92,7 +90,7 @@ object DataConvertUtils : IConvertUtils {
                     try {
                         jsonObject.put(key, listSupportPiperdataToJSON(value as List<Any>))
                     } catch (e: Exception) {
-                        // ignore
+                        //ignore
                     }
                 }
             }
@@ -104,10 +102,7 @@ object DataConvertUtils : IConvertUtils {
         val jsonArray = JSONArray()
         list.forEach {
             when (it) {
-                is Float -> {
-                    jsonArray.put(it.toDouble())
-                }
-
+                is Float -> jsonArray.put(it.toDouble())
                 is Long -> {
                     if (disableLongToDouble) {
                         jsonArray.put(it)
@@ -116,31 +111,16 @@ object DataConvertUtils : IConvertUtils {
                     }
                 }
 
-                is Int -> {
-                    jsonArray.put(it)
-                }
-
-                is Double -> {
-                    jsonArray.put(it)
-                }
-
-                is String -> {
-                    jsonArray.put(it)
-                }
-
-                is Boolean -> {
-                    jsonArray.put(it)
-                }
-
-                is PiperData -> {
-                    jsonArray.put(it)
-                }
-
+                is Int -> jsonArray.put(it)
+                is Double -> jsonArray.put(it)
+                is String -> jsonArray.put(it)
+                is Boolean -> jsonArray.put(it)
+                is PiperData -> jsonArray.put(it)
                 is Map<*, *> -> {
                     try {
                         jsonArray.put(mapSupportPiperdataToJSON(it as Map<String, Any>))
                     } catch (e: Exception) {
-                        // ignore
+                        //ignore
                     }
                 }
 
@@ -148,7 +128,7 @@ object DataConvertUtils : IConvertUtils {
                     try {
                         jsonArray.put(listSupportPiperdataToJSON(it as List<Any>))
                     } catch (e: Exception) {
-                        // ignore
+                        //ignore
                     }
                 }
             }
@@ -169,43 +149,19 @@ object DataConvertUtils : IConvertUtils {
                     }
                 }
 
-                is Float -> {
-                    jsonObject.put(key, value.toDouble())
-                }
-
-                is Int -> {
-                    jsonObject.put(key, value)
-                }
-
-                is Double -> {
-                    jsonObject.put(key, value)
-                }
-
-                is String -> {
-                    jsonObject.put(key, value)
-                }
-
-                is Boolean -> {
-                    jsonObject.put(key, value)
-                }
-
-                is JSONObject -> {
-                    jsonObject.put(key, value)
-                }
-
-                is JSONArray -> {
-                    jsonObject.put(key, value)
-                }
-
-                is PiperData -> {
-                    jsonObject.put(key, value.stringify())
-                }
-
+                is Float -> jsonObject.put(key, value.toDouble())
+                is Int -> jsonObject.put(key, value)
+                is Double -> jsonObject.put(key, value)
+                is String -> jsonObject.put(key, value)
+                is Boolean -> jsonObject.put(key, value)
+                is JSONObject -> jsonObject.put(key, value)
+                is JSONArray -> jsonObject.put(key, value)
+                is PiperData -> jsonObject.put(key, value.stringify())
                 is Map<*, *> -> {
                     try {
                         jsonObject.put(key, mapToJSON(value as Map<String, Any>))
                     } catch (e: Exception) {
-                        // ignore
+                        //ignore
                     }
                 }
 
@@ -213,7 +169,7 @@ object DataConvertUtils : IConvertUtils {
                     try {
                         jsonObject.put(key, listToJSON(value as List<Any>))
                     } catch (e: Exception) {
-                        // ignore
+                        //ignore
                     }
                 }
             }
@@ -225,10 +181,7 @@ object DataConvertUtils : IConvertUtils {
         val jsonArray = JSONArray()
         list.forEach {
             when (it) {
-                is Float -> {
-                    jsonArray.put(it.toDouble())
-                }
-
+                is Float -> jsonArray.put(it.toDouble())
                 is Long -> {
                     if (disableLongToDouble) {
                         jsonArray.put(it)
@@ -237,31 +190,16 @@ object DataConvertUtils : IConvertUtils {
                     }
                 }
 
-                is Int -> {
-                    jsonArray.put(it)
-                }
-
-                is Double -> {
-                    jsonArray.put(it)
-                }
-
-                is String -> {
-                    jsonArray.put(it)
-                }
-
-                is Boolean -> {
-                    jsonArray.put(it)
-                }
-
-                is PiperData -> {
-                    jsonArray.put(it.stringify())
-                }
-
+                is Int -> jsonArray.put(it)
+                is Double -> jsonArray.put(it)
+                is String -> jsonArray.put(it)
+                is Boolean -> jsonArray.put(it)
+                is PiperData -> jsonArray.put(it.stringify())
                 is Map<*, *> -> {
                     try {
                         jsonArray.put(mapToJSON(it as Map<String, Any>))
                     } catch (e: Exception) {
-                        // ignore
+                        //ignore
                     }
                 }
 
@@ -269,7 +207,7 @@ object DataConvertUtils : IConvertUtils {
                     try {
                         jsonArray.put(listToJSON(it as List<Any>))
                     } catch (e: Exception) {
-                        // ignore
+                        //ignore
                     }
                 }
             }
@@ -277,8 +215,8 @@ object DataConvertUtils : IConvertUtils {
         return jsonArray
     }
 
-    override fun jsonToMap(json: JSONObject): Map<String, Any?> =
-        mutableMapOf<String, Any?>().apply {
+    override fun jsonToMap(json: JSONObject): Map<String, Any?> {
+        return mutableMapOf<String, Any?>().apply {
             val iterator = json.keys()
             while (iterator.hasNext()) {
                 val key = iterator.next()
@@ -294,9 +232,10 @@ object DataConvertUtils : IConvertUtils {
                 }
             }
         }
+    }
 
-    override fun jsonToList(json: JSONArray): List<Any?> =
-        mutableListOf<Any?>().apply {
+    override fun jsonToList(json: JSONArray): List<Any?> {
+        return mutableListOf<Any?>().apply {
             val len = json.length()
             for (index in 0 until len) {
                 when (json.opt(index)) {
@@ -311,6 +250,7 @@ object DataConvertUtils : IConvertUtils {
                 }
             }
         }
+    }
 
     override fun convertJsonToMap(jsonObject: JSONObject): WritableMap {
         val map = JavaOnlyMap()
@@ -430,7 +370,7 @@ object DataConvertUtils : IConvertUtils {
                     try {
                         map.putMap(key, convertMapToReadableMap(value as Map<String, Any>))
                     } catch (e: Exception) {
-                        // ignore
+                        //ignore
                     }
                 }
 
@@ -438,7 +378,7 @@ object DataConvertUtils : IConvertUtils {
                     try {
                         map.putArray(key, convertArrayToWritableArray(value as List<Any>))
                     } catch (e: Exception) {
-                        // ignore
+                        //ignore
                     }
                 }
 
@@ -446,7 +386,7 @@ object DataConvertUtils : IConvertUtils {
                     try {
                         map.putArray(key, convertRealArrayToWritableArray(value as Array<Any>))
                     } catch (e: Exception) {
-                        // ignore
+                        //ignore
                     }
                 }
 
@@ -506,50 +446,17 @@ object DataConvertUtils : IConvertUtils {
         val ret = Arguments.createArray()
         sourceArray.forEach { item ->
             when (item) {
-                is Float, is Double -> {
-                    ret.pushDouble(item as Double)
-                }
-
-                is Long -> {
-                    ret.pushLong(item as Long)
-                }
-
-                is Number -> {
-                    ret.pushInt(item as Int)
-                }
-
-                is String -> {
-                    ret.pushString(item as String)
-                }
-
-                is Boolean -> {
-                    ret.pushBoolean(item as Boolean)
-                }
-
-                is Map<*, *> -> {
-                    ret.pushMap(convertMapToReadableMap(item as Map<String, Any?>))
-                }
-
-                is List<*> -> {
-                    ret.pushArray(convertArrayToWritableArray(item as List<Any>))
-                }
-
-                is Array<*> -> {
-                    ret.pushArray(convertRealArrayToWritableArray(item as Array<Any>))
-                }
-
-                is JSONArray -> {
-                    ret.pushArray(convertJsonToArray(item))
-                }
-
-                is JSONObject -> {
-                    ret.pushMap(convertJsonToMap(item))
-                }
-
-                is PiperData -> {
-                    ret.pushPiperData(item)
-                }
-
+                is Float, is Double -> ret.pushDouble(item as Double)
+                is Long -> ret.pushLong(item as Long)
+                is Number -> ret.pushInt(item as Int)
+                is String -> ret.pushString(item as String)
+                is Boolean -> ret.pushBoolean(item as Boolean)
+                is Map<*, *> -> ret.pushMap(convertMapToReadableMap(item as Map<String, Any?>))
+                is List<*> -> ret.pushArray(convertArrayToWritableArray(item as List<Any>))
+                is Array<*> -> ret.pushArray(convertRealArrayToWritableArray(item as Array<Any>))
+                is JSONArray -> ret.pushArray(convertJsonToArray(item))
+                is JSONObject -> ret.pushMap(convertJsonToMap(item))
+                is PiperData -> ret.pushPiperData(item)
                 else -> {}
             }
         }
@@ -565,7 +472,7 @@ object DataConvertUtils : IConvertUtils {
                     try {
                         array.pushMap(convertMapToReadableMap(value as Map<String, Any>))
                     } catch (e: Exception) {
-                        // ignore
+                        //ignore
                     }
                 }
 
@@ -573,7 +480,7 @@ object DataConvertUtils : IConvertUtils {
                     try {
                         array.pushArray(convertArrayToWritableArray(value as List<Any>))
                     } catch (e: Exception) {
-                        // ignore
+                        //ignore
                     }
                 }
 
@@ -610,7 +517,11 @@ object DataConvertUtils : IConvertUtils {
                 }
 
                 else -> {
-                    array.pushString(value.toString())
+                    try {
+                        array.pushString(value.toString())
+                    } catch (e: Exception) {
+                        LogUtils.e(TAG, "convertArrayToWritableArray:$e.message")
+                    }
                 }
             }
         }
@@ -625,33 +536,18 @@ object DataConvertUtils : IConvertUtils {
             val key = keyIterator.nextKey()
             val value = source.get(key)
             when (value.getType()) {
-                XReadableType.String -> {
-                    map[key] = value.asString()
-                }
+                XReadableType.String -> map[key] = value.asString()
+                XReadableType.Int -> map[key] = value.asInt()
+                XReadableType.Number -> map[key] = value.asDouble()
+                XReadableType.Boolean -> map[key] = value.asBoolean()
+                XReadableType.Array -> map[key] =
+                    value.asArray()?.let { map[key] = convertXReadableArrayToReadableArray(it) }
 
-                XReadableType.Int -> {
-                    map[key] = value.asInt()
-                }
-
-                XReadableType.Number -> {
-                    map[key] = value.asDouble()
-                }
-
-                XReadableType.Boolean -> {
-                    map[key] = value.asBoolean()
-                }
-
-                XReadableType.Array -> {
-                    map[key] =
-                        value.asArray()?.let { map[key] = convertXReadableArrayToReadableArray(it) }
-                }
-
-                XReadableType.Map -> {
-                    map[key] =
-                        value.asMap()?.let { map[key] = convertXReadableMapToReadableMap(it) }
-                }
+                XReadableType.Map -> map[key] =
+                    value.asMap()?.let { map[key] = convertXReadableMapToReadableMap(it) }
 
                 else -> {
+
                 }
             }
         }
@@ -664,43 +560,28 @@ object DataConvertUtils : IConvertUtils {
 
         for (idx in 0 until source.size()) {
             when (source.get(idx).getType()) {
-                XReadableType.Boolean -> {
-                    array.pushBoolean(source.getBoolean(idx))
-                }
+                XReadableType.Boolean -> array.pushBoolean(source.getBoolean(idx))
+                XReadableType.Int -> array.pushInt(source.getInt(idx))
+                XReadableType.Number -> array.pushDouble(source.getDouble(idx))
+                XReadableType.String -> array.pushString(source.getString(idx))
+                XReadableType.Array -> array.pushArray(
+                    source.getArray(idx)?.let {
+                        convertXReadableArrayToReadableArray(
+                            it
+                        )
+                    }
+                )
 
-                XReadableType.Int -> {
-                    array.pushInt(source.getInt(idx))
-                }
-
-                XReadableType.Number -> {
-                    array.pushDouble(source.getDouble(idx))
-                }
-
-                XReadableType.String -> {
-                    array.pushString(source.getString(idx))
-                }
-
-                XReadableType.Array -> {
-                    array.pushArray(
-                        source.getArray(idx)?.let {
-                            convertXReadableArrayToReadableArray(
-                                it,
-                            )
-                        },
-                    )
-                }
-
-                XReadableType.Map -> {
-                    array.pushMap(
-                        source.getMap(idx)?.let {
-                            convertXReadableMapToReadableMap(
-                                it,
-                            )
-                        },
-                    )
-                }
+                XReadableType.Map -> array.pushMap(
+                    source.getMap(idx)?.let {
+                        convertXReadableMapToReadableMap(
+                            it
+                        )
+                    }
+                )
 
                 else -> {
+
                 }
             }
         }
@@ -708,8 +589,8 @@ object DataConvertUtils : IConvertUtils {
         return array
     }
 
-    override fun getValue(value: Any?): Any? =
-        when (value) {
+    override fun getValue(value: Any?): Any? {
+        return when (value) {
             is ReadableArray -> {
                 val size = value.size()
                 val list = ArrayList<Any?>()
@@ -762,6 +643,8 @@ object DataConvertUtils : IConvertUtils {
             }
         }
 
+    }
+
     /**
      *
      */
@@ -811,6 +694,7 @@ object DataConvertUtils : IConvertUtils {
                         }
                     }
                 }
+
             }
         }
     }
