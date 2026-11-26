@@ -8,21 +8,29 @@ import com.tiktok.sparkling.method.registry.core.utils.JsonUtils
 import org.json.JSONArray
 import org.json.JSONObject
 
+/** Default [XReadableMap] wrapper backed by a [JSONObject]. */
 class ReadableMapImpl(
     private val origin: JSONObject,
 ) : XReadableMap {
+    /** Returns whether [origin] defines [name]. */
     override fun hasKey(name: String): Boolean = origin.has(name)
 
+    /** Returns whether [name] is absent or explicitly null in [origin]. */
     override fun isNull(name: String): Boolean = origin.isNull(name)
 
+    /** Returns the boolean value for [name], or false if absent or incompatible. */
     override fun getBoolean(name: String): Boolean = origin.optBoolean(name)
 
+    /** Returns the double value for [name], or NaN if absent or incompatible. */
     override fun getDouble(name: String): Double = origin.optDouble(name)
 
+    /** Returns the integer value for [name], or 0 if absent or incompatible. */
     override fun getInt(name: String): Int = origin.optInt(name)
 
+    /** Returns the string value for [name], or empty string if absent. */
     override fun getString(name: String): String = origin.optString(name)
 
+    /** Returns the nested array for [name], or null if absent or not a [JSONArray]. */
     override fun getArray(name: String): XReadableArray? {
         val res = origin.optJSONArray(name)
         return if (res == null) {
@@ -32,6 +40,7 @@ class ReadableMapImpl(
         }
     }
 
+    /** Returns the nested map for [name], or null if absent or not a [JSONObject]. */
     override fun getMap(name: String): XReadableMap? {
         val res = origin.optJSONObject(name)
         return if (res == null) {
@@ -41,8 +50,10 @@ class ReadableMapImpl(
         }
     }
 
+    /** Returns the value for [name] wrapped as an [XDynamic]. */
     override fun get(name: String): XDynamic = DynamicImpl(origin.opt(name))
 
+    /** Returns the [XReadableType] corresponding to the raw value for [name]. */
     override fun getType(name: String): XReadableType =
         when (origin.opt(name)) {
             is JSONArray -> XReadableType.Array
@@ -54,8 +65,10 @@ class ReadableMapImpl(
             else -> XReadableType.Null
         }
 
+    /** Returns an iterator over all keys in [origin]. */
     override fun keyIterator(): XKeyIterator = KeyIteratorImpl(origin.keys())
 
+    /** Converts [origin] into a standard Kotlin map. */
     override fun toMap(): Map<String, Any?> = JsonUtils.jsonToMap(origin)
 }
 

@@ -4,7 +4,6 @@
 
 package com.tiktok.sparkling.method.registry.core
 
-import com.tiktok.sparkling.method.registry.api.BridgeSettings
 import com.tiktok.sparkling.method.registry.api.util.ThreadPool
 import io.mockk.every
 import io.mockk.just
@@ -24,8 +23,7 @@ import org.junit.Test
 class IDLMethodRegistryExtensionTest {
     @Before
     fun setUp() {
-        mockkObject(BridgeSettings, IDLMethodRegistryCacheManager, ThreadPool)
-        every { BridgeSettings.bridgeRegistryOptimize } returns true
+        mockkObject(IDLMethodRegistryCacheManager, ThreadPool)
         every { IDLMethodRegistryCacheManager.provideIDLMethodRegistryCache(any()) } returns null
         every { IDLMethodRegistryCacheManager.registerIDLMethodRegistryCache(any(), any()) } just Runs
         every { ThreadPool.runInBackGround(any()) } just Runs
@@ -33,7 +31,7 @@ class IDLMethodRegistryExtensionTest {
 
     @After
     fun tearDown() {
-        unmockkObject(ThreadPool, IDLMethodRegistryCacheManager, BridgeSettings)
+        unmockkObject(ThreadPool, IDLMethodRegistryCacheManager)
     }
 
     @Test

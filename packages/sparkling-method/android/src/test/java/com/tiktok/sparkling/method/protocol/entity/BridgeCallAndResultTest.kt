@@ -6,7 +6,6 @@ package com.tiktok.sparkling.method.protocol.entity
 import com.tiktok.sparkling.method.protocol.entity.Platform
 import com.lynx.react.bridge.JavaOnlyMap
 import com.tiktok.sparkling.method.protocol.BridgeContext
-import com.tiktok.sparkling.method.registry.api.BridgeSettings
 import com.tiktok.sparkling.method.registry.api.SparklingBridge
 import com.tiktok.sparkling.method.registry.core.IDLBridgeMethod
 import org.json.JSONObject

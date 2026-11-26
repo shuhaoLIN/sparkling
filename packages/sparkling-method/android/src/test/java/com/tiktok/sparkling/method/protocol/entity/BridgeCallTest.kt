@@ -5,7 +5,6 @@ package com.tiktok.sparkling.method.protocol.entity
 
 import com.tiktok.sparkling.method.protocol.entity.Platform
 import com.tiktok.sparkling.method.protocol.BridgeContext
-import com.tiktok.sparkling.method.registry.api.BridgeSettings
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test

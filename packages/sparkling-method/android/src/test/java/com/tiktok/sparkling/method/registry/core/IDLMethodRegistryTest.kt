@@ -4,7 +4,6 @@
 
 package com.tiktok.sparkling.method.registry.core
 
-import com.tiktok.sparkling.method.registry.api.BridgeSettings
 import com.tiktok.sparkling.method.registry.core.model.context.ContextProviderFactory
 import io.mockk.*
 import org.junit.After
@@ -151,10 +150,6 @@ class IDLMethodRegistryTest {
     fun setUp() {
         mockBridgeContext = mockk()
 
-        // Mock BridgeSettings
-        mockkObject(BridgeSettings)
-        every { BridgeSettings.bridgeRegistryOptimize } returns false
-
         // Mock IDLMethodRegistryCacheManager
         mockkObject(IDLMethodRegistryCacheManager)
         every { IDLMethodRegistryCacheManager.provideIDLMethodRegistryCache(any()) } returns null
@@ -235,7 +230,6 @@ class IDLMethodRegistryTest {
     @Test
     fun testRegisterMethodWithOptimization() {
         // Given
-        every { BridgeSettings.bridgeRegistryOptimize } returns true
         val testMethod = createMockIDLMethod("optimizedMethod")
         every { IDLMethodRegistryCacheManager.provideIDLMethodRegistryCache(null) } returns createMockRegistryCache("optimizedMethod")
 
