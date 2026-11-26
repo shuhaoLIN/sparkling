@@ -11,7 +11,6 @@ import com.lynx.tasm.LynxBackgroundRuntimeOptions
 import com.lynx.tasm.LynxViewBuilder
 import com.tiktok.sparkling.method.protocol.BridgeContext
 import com.tiktok.sparkling.method.protocol.InnerBridge
-import com.tiktok.sparkling.method.protocol.impl.monitor.BridgeSDKMonitor
 import com.tiktok.sparkling.method.protocol.impl.monitor.IBridgeMonitor
 import com.tiktok.sparkling.method.protocol.impl.interceptor.BridgeMockInterceptor
 import com.tiktok.sparkling.method.protocol.interfaces.IBridgeLifeClient
@@ -60,13 +59,11 @@ class SparklingBridgeTest {
         // Mock static objects
         mockkObject(BridgeManager)
         mockkObject(IDLMethodRegistryCacheManager)
-        mockkObject(InnerBridge)
 
         every { BridgeManager.insert(any<View>(), any()) } returns Unit
         every { BridgeManager.insert(any<String>(), any()) } returns Unit
         every { BridgeManager.remove(any()) } returns Unit
         every { IDLMethodRegistryCacheManager.unregisterIDLMethodRegistryCache(any()) } returns Unit
-        every { InnerBridge.initSDKMonitor(any(), any()) } returns Unit
 
         sparklingBridge = spyk(SparklingBridge())
 
@@ -281,18 +278,6 @@ class SparklingBridgeTest {
     // }
 
     @Test
-    fun testInitSDKMonitor() {
-        // Given
-        val appInfo = mockk<BridgeSDKMonitor.APPInfo4Monitor>()
-
-        // When
-        sparklingBridge.initSDKMonitor(mockContext, appInfo)
-
-        // Then
-        verify { InnerBridge.initSDKMonitor(mockContext, appInfo) }
-    }
-
-    @Test
     fun testRegisterLynxModule() {
         // Given
         val containerId = "lynx_container"
@@ -376,21 +361,6 @@ class SparklingBridgeTest {
 
         // Cleanup
         SparklingBridge.isDebugEnv = false
-    }
-
-    @Test
-    fun testStaticJSBErrorReportBlockList() {
-        // Given
-        val jsbName = "blockedJSB"
-
-        // When
-        SparklingBridge.jsbErrorReportBlockList.add(jsbName)
-
-        // Then
-        assertTrue("JSB should be in block list", SparklingBridge.jsbErrorReportBlockList.contains(jsbName))
-
-        // Cleanup
-        SparklingBridge.jsbErrorReportBlockList.clear()
     }
 
     @Test
