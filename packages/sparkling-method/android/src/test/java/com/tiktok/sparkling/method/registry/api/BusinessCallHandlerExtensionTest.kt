@@ -170,8 +170,8 @@ class BusinessCallHandlerExtensionTest {
 
     private class HostHandler(namespace: String, registry: IDLMethodRegistry) : BusinessCallHandler(namespace, registry) {
         var releaseRetainedMethods = false
-        fun table(): ConcurrentHashMap<BridgePlatformType, ConcurrentHashMap<String, IDLBridgeMethod>> = methodTable()
-        fun slot(platform: BridgePlatformType): ConcurrentHashMap<String, IDLBridgeMethod> = getPlatformTypeCache(platform)
+        fun table(): ConcurrentHashMap<IBridgePlatformType, ConcurrentHashMap<String, IDLBridgeMethod>> = methodTable()
+        fun slot(platform: IBridgePlatformType): ConcurrentHashMap<String, IDLBridgeMethod> = getPlatformTypeCache(platform)
         fun unwrap(params: ReadableMap?): ReadableMap? = unWrapperParams(params)
         override fun onRelease() {
             if (releaseRetainedMethods) {

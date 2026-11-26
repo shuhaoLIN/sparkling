@@ -6,6 +6,7 @@ package com.tiktok.sparkling.method.registry.api
 
 import com.tiktok.sparkling.method.registry.core.BridgePlatformType
 import com.tiktok.sparkling.method.registry.core.IBridgeContext
+import com.tiktok.sparkling.method.registry.core.IBridgePlatformType
 import com.tiktok.sparkling.method.registry.core.IDLBridgeMethod
 import com.tiktok.sparkling.method.registry.core.IDLMethodProvider
 import com.tiktok.sparkling.method.registry.core.IDLMethodRegistry
@@ -59,15 +60,15 @@ class BridgeLocalPoolExtensionTest {
     fun providerHooksRunOnlyOnCacheMissAndGlobalLookupFollowsALocalMiss() {
         val local = HostClassMethod()
         val global = HostClassMethod()
-        val localLookups = mutableListOf<Pair<BridgePlatformType, String>>()
-        val globalLookups = mutableListOf<Pair<BridgePlatformType, String>>()
+        val localLookups = mutableListOf<Pair<IBridgePlatformType, String>>()
+        val globalLookups = mutableListOf<Pair<IBridgePlatformType, String>>()
         val pool = object : BridgeLocalPool() {
-            override fun findLocalMethodProvider(platformType: BridgePlatformType, bridgeName: String): IDLMethodProvider? {
+            override fun findLocalMethodProvider(platformType: IBridgePlatformType, bridgeName: String): IDLMethodProvider? {
                 localLookups.add(platformType to bridgeName)
                 return if (bridgeName == "local") IDLMethodProvider { local } else null
             }
 
-            override fun findGlobalMethodProvider(platformType: BridgePlatformType, bridgeName: String): IDLMethodProvider? {
+            override fun findGlobalMethodProvider(platformType: IBridgePlatformType, bridgeName: String): IDLMethodProvider? {
                 globalLookups.add(platformType to bridgeName)
                 return if (bridgeName == "global") IDLMethodProvider { global } else null
             }
@@ -138,11 +139,11 @@ class BridgeLocalPoolExtensionTest {
     }
 
     private open class InspectablePool : BridgeLocalPool() {
-        fun table(): ConcurrentHashMap<BridgePlatformType, ConcurrentHashMap<String, IDLBridgeMethod>> = methodTable()
+        fun table(): ConcurrentHashMap<IBridgePlatformType, ConcurrentHashMap<String, IDLBridgeMethod>> = methodTable()
 
-        fun bucket(platformType: BridgePlatformType): ConcurrentHashMap<String, IDLBridgeMethod> =
+        fun bucket(platformType: IBridgePlatformType): ConcurrentHashMap<String, IDLBridgeMethod> =
             getPlatformTypeCache(platformType)
 
-        override fun findGlobalMethodProvider(platformType: BridgePlatformType, bridgeName: String): IDLMethodProvider? = null
+        override fun findGlobalMethodProvider(platformType: IBridgePlatformType, bridgeName: String): IDLMethodProvider? = null
     }
 }

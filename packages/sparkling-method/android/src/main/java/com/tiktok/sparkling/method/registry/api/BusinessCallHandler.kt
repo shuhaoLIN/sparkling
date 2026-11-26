@@ -9,22 +9,26 @@ import com.tiktok.sparkling.method.protocol.BridgeContext
 import com.tiktok.sparkling.method.protocol.entity.BridgeCall
 import com.tiktok.sparkling.method.protocol.interfaces.IBridgeHandler
 import com.tiktok.sparkling.method.protocol.interfaces.IBridgeMethodCallback
+import com.tiktok.sparkling.method.registry.api.util.BridgeMethodCallbackHelper
+import com.tiktok.sparkling.method.registry.core.BridgePlatformType
 import com.tiktok.sparkling.method.registry.core.IBridgeContext
+import com.tiktok.sparkling.method.registry.core.IBridgePlatformType
 import com.tiktok.sparkling.method.registry.core.IDLBridgeMethod
 import com.tiktok.sparkling.method.registry.core.IDLMethodProvider
 import com.tiktok.sparkling.method.registry.core.IDLMethodRegistry
-import com.tiktok.sparkling.method.registry.core.BridgePlatformType
-import com.tiktok.sparkling.method.registry.api.util.BridgeMethodCallbackHelper
 import org.json.JSONObject
 import java.util.concurrent.ConcurrentHashMap
 
-/** Handles one business namespace through a registry that host subclasses can supply. */
+/**
+ * Handles the calls of one business namespace through a [registry] that host subclasses can
+ * supply; each lookup builds a fresh method instance and retains the latest until release.
+ */
 open class BusinessCallHandler protected constructor(
     val nameSpace: String,
     private val registry: IDLMethodRegistry,
 ) : IBridgeHandler {
     private var context: IBridgeContext? = null
-    private val pool: ConcurrentHashMap<BridgePlatformType, ConcurrentHashMap<String, IDLBridgeMethod>> = ConcurrentHashMap()
+    private val pool: ConcurrentHashMap<IBridgePlatformType, ConcurrentHashMap<String, IDLBridgeMethod>> = ConcurrentHashMap()
     private var isRelease = false
 
     /** Creates the default registry, including method-name inference from instances. */
@@ -45,8 +49,8 @@ open class BusinessCallHandler protected constructor(
         context?.let {
             bridge.setBridgeContext(it)
         }
-        val params = call.params
-        when (params) {
+
+        when (val params = call.params) {
             is JSONObject -> {
                 JsonProcessor(bridge, params, call.platform)
             }
@@ -64,7 +68,7 @@ open class BusinessCallHandler protected constructor(
     /** Registers a method class in this handler's registry. */
     fun registerMethod(
         clazz: Class<out IDLBridgeMethod>,
-        scope: BridgePlatformType = BridgePlatformType.ALL,
+        scope: IBridgePlatformType = BridgePlatformType.ALL,
     ) {
         registry.registerMethod(clazz, scope)
     }
@@ -72,7 +76,7 @@ open class BusinessCallHandler protected constructor(
     /** Registers a factory in this handler's registry. */
     fun registerMethod(
         name: String,
-        scope: BridgePlatformType = BridgePlatformType.ALL,
+        scope: IBridgePlatformType = BridgePlatformType.ALL,
         clazz: Class<out IDLBridgeMethod>? = null,
         factory: () -> IDLBridgeMethod,
     ) {
@@ -94,7 +98,7 @@ open class BusinessCallHandler protected constructor(
     /** Whether the registry contains this method on the requested platform. */
     fun isMethodExists(
         name: String,
-        platformType: BridgePlatformType = BridgePlatformType.ALL,
+        platformType: IBridgePlatformType = BridgePlatformType.ALL,
     ): Boolean = registry.isMethodExists(name, platformType)
 
     /** Supplies the SDK context to subsequently handled methods. */
@@ -102,12 +106,12 @@ open class BusinessCallHandler protected constructor(
         context = bridgeContext
     }
 
-    /** The live table retains only the latest instance for each platform and method name. */
-    protected fun methodTable(): ConcurrentHashMap<BridgePlatformType, ConcurrentHashMap<String, IDLBridgeMethod>> = pool
+    /** Every instance built so far, for a subclass that has to visit them before they are dropped. */
+    protected fun methodTable(): ConcurrentHashMap<IBridgePlatformType, ConcurrentHashMap<String, IDLBridgeMethod>> = pool
 
     /** Returns the platform's live table, creating it on first use. */
     protected fun getPlatformTypeCache(
-        platformType: BridgePlatformType,
+        platformType: IBridgePlatformType,
     ): ConcurrentHashMap<String, IDLBridgeMethod> = pool.getOrPut(platformType) { ConcurrentHashMap() }
 
     /** Shares the existing data-wrapper extraction with host handler subclasses. */

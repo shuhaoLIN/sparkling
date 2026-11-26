@@ -77,9 +77,9 @@ class DefaultCallHandlerExtensionTest {
     @Test
     fun handlingAndLookupReachTheInjectedProviderHooksAndReuseTheInstance() {
         val method = TrackingMethod()
-        val lookups = mutableListOf<Pair<BridgePlatformType, String>>()
+        val lookups = mutableListOf<Pair<IBridgePlatformType, String>>()
         val pool = object : BridgeLocalPool() {
-            override fun findLocalMethodProvider(platformType: BridgePlatformType, bridgeName: String): IDLMethodProvider {
+            override fun findLocalMethodProvider(platformType: IBridgePlatformType, bridgeName: String): IDLMethodProvider {
                 lookups.add(platformType to bridgeName)
                 return IDLMethodProvider { method }
             }

@@ -5,7 +5,6 @@
 package com.tiktok.sparkling.method.registry.api.util
 
 import com.tiktok.sparkling.method.protocol.utils.LogUtils
-import com.tiktok.sparkling.method.registry.api.util.TAG
 import com.lynx.jsbridge.Arguments
 import com.lynx.react.bridge.Dynamic
 import com.lynx.react.bridge.JavaOnlyArray

@@ -9,13 +9,17 @@ import com.tiktok.sparkling.method.protocol.BridgeContext
 import com.tiktok.sparkling.method.protocol.entity.BridgeCall
 import com.tiktok.sparkling.method.protocol.interfaces.IBridgeHandler
 import com.tiktok.sparkling.method.protocol.interfaces.IBridgeMethodCallback
-import com.tiktok.sparkling.method.registry.core.IBridgeContext
-import com.tiktok.sparkling.method.registry.core.IDLBridgeMethod
-import com.tiktok.sparkling.method.registry.core.BridgePlatformType
 import com.tiktok.sparkling.method.registry.api.util.BridgeMethodCallbackHelper
+import com.tiktok.sparkling.method.registry.core.BridgePlatformType
+import com.tiktok.sparkling.method.registry.core.IBridgeContext
+import com.tiktok.sparkling.method.registry.core.IBridgePlatformType
+import com.tiktok.sparkling.method.registry.core.IDLBridgeMethod
 import org.json.JSONObject
 
-/** Resolves calls through one container's pool, which host subclasses can supply. */
+/**
+ * Resolves calls through one container's [pool] and runs them with the processor matching the
+ * call's parameter carrier. Host subclasses may supply their own [BridgeLocalPool] instance.
+ */
 open class DefaultCallHandler protected constructor(
     private val pool: BridgeLocalPool,
 ) : IBridgeHandler {
@@ -25,24 +29,21 @@ open class DefaultCallHandler protected constructor(
     /** Creates a handler with the default container-scoped pool. */
     constructor() : this(BridgeLocalPool())
 
-    /** Dispatches through the existing compatibility path or the matching parameter processor. */
+    /** Dispatches the call through the matching parameter processor. */
     override fun handle(
         bridgeContext: BridgeContext,
         call: BridgeCall,
         callback: IBridgeMethodCallback,
     ) {
         val platform = BridgeContext.getPlatformByBridgeContext(bridgeContext)
-        val bridge =
-            pool.getBridge(call.bridgeName, platform)
-                ?: return BridgeMethodCallbackHelper.bridgeNotFound(callback)
-
-        val params = call.params
+        val bridge = pool.getBridge(call.bridgeName, platform)
+            ?: return BridgeMethodCallbackHelper.bridgeNotFound(callback)
 
         context?.let {
             bridge.setBridgeContext(it)
         }
 
-        when (params) {
+        when (val params = call.params) {
             is JSONObject -> {
                 JsonProcessor(bridge, params, call.platform).apply { this@apply.context = this@DefaultCallHandler.context }
             }
@@ -60,7 +61,7 @@ open class DefaultCallHandler protected constructor(
     /** Registers a method class in this handler's pool. */
     fun registerLocalIDLMethod(
         clazz: Class<out IDLBridgeMethod>?,
-        scope: BridgePlatformType = BridgePlatformType.ALL,
+        scope: IBridgePlatformType = BridgePlatformType.ALL,
     ) {
         pool.registerLocalIDLMethod(clazz, scope)
     }
@@ -68,7 +69,7 @@ open class DefaultCallHandler protected constructor(
     /** Registers a factory in this handler's pool. */
     fun registerLocalIDLMethod(
         name: String,
-        scope: BridgePlatformType = BridgePlatformType.ALL,
+        scope: IBridgePlatformType = BridgePlatformType.ALL,
         clazz: Class<out IDLBridgeMethod>? = null,
         factory: () -> IDLBridgeMethod,
     ) {

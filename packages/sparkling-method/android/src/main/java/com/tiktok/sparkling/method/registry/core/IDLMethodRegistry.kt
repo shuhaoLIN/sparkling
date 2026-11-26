@@ -4,12 +4,16 @@
 
 package com.tiktok.sparkling.method.registry.core
 
-import com.tiktok.sparkling.method.registry.api.BridgeSettings
 import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Registers method classes and providers by platform and name.
- * Hosts can customize name resolution while sharing registration and lookup behavior.
+ *
+ * A registry is either global or bound to one container: [isLocalBridgeRegistry] picks which, and
+ * [bridgeContext] carries the container it belongs to. Hosts can customize name resolution
+ * ([resolveMethodName]), platform key normalization ([normalizePlatform]), `NONE` handling
+ * ([isNonePlatform]), scope expansion ([expandScope]), and local cache creation
+ * ([createLocalRegistryCache]) while sharing registration and lookup behavior.
  */
 open class IDLMethodRegistry(
     protected val isLocalBridgeRegistry: Boolean = false,
@@ -27,16 +31,24 @@ open class IDLMethodRegistry(
 
     var namespace: String = "DEFAULT"
 
-    private val methodMap: ConcurrentHashMap<BridgePlatformType, ConcurrentHashMap<String, IDLMethodProvider>> =
+    private val methodMap: ConcurrentHashMap<IBridgePlatformType, ConcurrentHashMap<String, IDLMethodProvider>> =
         ConcurrentHashMap()
-    protected val methodClassMap: ConcurrentHashMap<BridgePlatformType, ConcurrentHashMap<String, Class<out IDLBridgeMethod>>> =
+
+    /**
+     * platform -> method name -> method class.
+     *
+     * Protected so host subclasses can expose or inspect the backing table directly.
+     */
+    protected val methodClassMap: ConcurrentHashMap<IBridgePlatformType, ConcurrentHashMap<String, Class<out IDLBridgeMethod>>> =
         ConcurrentHashMap()
-    private var methodRegistryCache: IDLMethodRegistryCache? = null
+
+    protected var methodRegistryCache: IDLMethodRegistryCache? = null
+        private set
 
     init {
         if (isLocalBridgeRegistry) {
             methodRegistryCache =
-                IDLMethodRegistryCache().apply {
+                createLocalRegistryCache().apply {
                     bridgeContext?.containerID?.let {
                         IDLMethodRegistryCacheManager.registerIDLMethodRegistryCache(
                             it,
@@ -47,68 +59,23 @@ open class IDLMethodRegistry(
         }
     }
 
-    private fun innerRegisterMethod(
+    /** Registers [clazz] under every platform [scope] covers after resolving its method name. */
+    fun registerMethod(
         clazz: Class<out IDLBridgeMethod>,
-        scope: BridgePlatformType,
+        scope: IBridgePlatformType = BridgePlatformType.ALL,
     ) {
         val name = resolveMethodName(clazz)
         if (!name.isNullOrEmpty()) {
-            innerRegisterMethod(name, methodProviderFor(clazz), scope, clazz)
+            val provider = methodProviderFor(clazz)
+            expandScope(scope).forEach { putMethod(name, provider, it, clazz) }
         }
-    }
-
-    /** Registers a class on the requested platforms after resolving its method name. */
-    fun registerMethod(
-        clazz: Class<out IDLBridgeMethod>,
-        scope: BridgePlatformType = BridgePlatformType.ALL,
-    ) {
-        if (!BridgeSettings.bridgeRegistryOptimize) {
-            (
-                if (scope == BridgePlatformType.ALL) {
-                    listOf(
-                        BridgePlatformType.ALL,
-                        BridgePlatformType.WEB,
-                        BridgePlatformType.LYNX,
-                    )
-                } else {
-                    listOf(scope)
-                }
-            ).forEach {
-                innerRegisterMethod(clazz, it)
-            }
-        } else {
-            val name = resolveMethodName(clazz)
-            if (!name.isNullOrEmpty()) {
-                (
-                    if (scope == BridgePlatformType.ALL) {
-                        listOf(
-                            BridgePlatformType.ALL,
-                            BridgePlatformType.WEB,
-                            BridgePlatformType.LYNX,
-                        )
-                    } else {
-                        listOf(scope)
-                    }
-                ).forEach {
-                    innerRegisterMethod(clazz, it, name)
-                }
-            }
-        }
-    }
-
-    private fun innerRegisterMethod(
-        clazz: Class<out IDLBridgeMethod>,
-        scope: BridgePlatformType,
-        name: String,
-    ) {
-        innerRegisterMethod(name, methodProviderFor(clazz), scope, clazz)
     }
 
     /** Registers a factory, optionally associating a class for metadata and class lookups. */
     fun registerMethodProvider(
         name: String,
         methodProvider: IDLMethodProvider,
-        scope: BridgePlatformType = BridgePlatformType.ALL,
+        scope: IBridgePlatformType = BridgePlatformType.ALL,
         clazz: Class<out IDLBridgeMethod>? = null,
     ) {
         if (name.isEmpty()) return
@@ -119,80 +86,45 @@ open class IDLMethodRegistry(
                 methodRegistryCache?.cacheMethodClass(it)
             }
         }
-        (
-            if (scope == BridgePlatformType.ALL) {
-                listOf(
-                    BridgePlatformType.ALL,
-                    BridgePlatformType.WEB,
-                    BridgePlatformType.LYNX,
-                )
-            } else {
-                listOf(scope)
-            }
-        ).forEach {
-            innerRegisterMethod(name, methodProvider, it, clazz)
-        }
-    }
-
-    private fun innerRegisterMethod(
-        name: String,
-        methodProvider: IDLMethodProvider,
-        scope: BridgePlatformType,
-        clazz: Class<out IDLBridgeMethod>?,
-    ) {
-        (methodMap[scope] ?: ConcurrentHashMap()).also {
-            it[name] = methodProvider
-            methodMap[scope] = it
-        }
-        if (clazz != null) {
-            (methodClassMap[scope] ?: ConcurrentHashMap()).also {
-                it[name] = clazz
-                methodClassMap[scope] = it
-            }
-        }
+        expandScope(scope).forEach { putMethod(name, methodProvider, it, clazz) }
     }
 
     /** Returns the registered class, or null for an unknown method or the NONE platform. */
     fun findMethodClass(
-        platformType: BridgePlatformType,
+        platformType: IBridgePlatformType,
         name: String,
     ): Class<out IDLBridgeMethod>? {
-        if (platformType == BridgePlatformType.NONE) {
+        if (isNonePlatform(platformType)) {
             return null
         }
-
-        return methodClassMap[platformType]?.run {
-            this[name]
-        }
+        return methodClassMap[normalizePlatform(platformType)]?.get(name)
     }
 
     /** Returns the registered factory, or null for an unknown method or the NONE platform. */
-    fun findMethodProvider(
-        platformType: BridgePlatformType,
+    open fun findMethodProvider(
+        platformType: IBridgePlatformType,
         name: String,
     ): IDLMethodProvider? {
-        if (platformType == BridgePlatformType.NONE) {
+        if (isNonePlatform(platformType)) {
             return null
         }
-
-        return methodMap[platformType]?.run {
-            this[name]
-        }
+        return methodMap[normalizePlatform(platformType)]?.get(name)
     }
 
     /** Whether either a provider or a class is registered for this name and platform. */
     fun isMethodExists(
         name: String,
-        platformType: BridgePlatformType = BridgePlatformType.ALL,
+        platformType: IBridgePlatformType = BridgePlatformType.ALL,
     ): Boolean = findMethodProvider(platformType, name) != null || findMethodClass(platformType, name) != null
 
     /** Returns the live class table for a platform, excluding NONE. */
-    fun getMethodList(platformType: BridgePlatformType): MutableMap<String, Class<out IDLBridgeMethod>>? {
-        if (platformType == BridgePlatformType.NONE) {
+    fun getMethodList(
+        platformType: IBridgePlatformType,
+    ): MutableMap<String, Class<out IDLBridgeMethod>>? {
+        if (isNonePlatform(platformType)) {
             return null
         }
-
-        return methodClassMap[platformType]
+        return methodClassMap[normalizePlatform(platformType)]
     }
 
     /**
@@ -200,7 +132,7 @@ open class IDLMethodRegistry(
      * Platforms absent from the source are retained. The new maps share their provider objects
      * and class values with the source.
      */
-    fun copyFrom(other: IDLMethodRegistry) {
+    open fun copyFrom(other: IDLMethodRegistry) {
         namespace = other.namespace
         (other.methodMap.keys + other.methodClassMap.keys).forEach { platform ->
             val providers = other.methodMap[platform]
@@ -217,6 +149,28 @@ open class IDLMethodRegistry(
             }
         }
     }
+
+    /** Stores one already-named method entry under one platform. */
+    protected open fun putMethod(
+        name: String,
+        methodProvider: IDLMethodProvider,
+        scope: IBridgePlatformType,
+        clazz: Class<out IDLBridgeMethod>?,
+    ) {
+        (methodMap[scope] ?: ConcurrentHashMap()).also {
+            it[name] = methodProvider
+            methodMap[scope] = it
+        }
+        if (clazz != null) {
+            (methodClassMap[scope] ?: ConcurrentHashMap()).also {
+                it[name] = clazz
+                methodClassMap[scope] = it
+            }
+        }
+    }
+
+    /** Creates the container-local annotation cache when [isLocalBridgeRegistry] is true. */
+    protected open fun createLocalRegistryCache(): IDLMethodRegistryCache = IDLMethodRegistryCache()
 
     /** Resolves cached annotations first, then uses an instance only when configured to do so. */
     protected open fun resolveMethodName(clazz: Class<out IDLBridgeMethod>): String? {
@@ -236,6 +190,28 @@ open class IDLMethodRegistry(
         return runCatching { methodProviderFor(clazz).provideMethod().name }.getOrNull()
     }
 
+    /** The key [scope] is stored and looked up under. */
+    protected open fun normalizePlatform(scope: IBridgePlatformType): IBridgePlatformType = scope
+
+    /** Whether [platformType] represents the NONE platform, which never resolves any method. */
+    protected open fun isNonePlatform(platformType: IBridgePlatformType): Boolean =
+        normalizePlatform(platformType) == BridgePlatformType.NONE
+
+    /** The platforms one registration covers. */
+    protected open fun expandScope(scope: IBridgePlatformType): List<IBridgePlatformType> {
+        val platform = normalizePlatform(scope)
+        return if (platform == BridgePlatformType.ALL) {
+            listOf(
+                BridgePlatformType.ALL,
+                BridgePlatformType.WEB,
+                BridgePlatformType.LYNX,
+            )
+        } else {
+            listOf(platform)
+        }
+    }
+
     @Suppress("DEPRECATION")
-    private fun methodProviderFor(clazz: Class<out IDLBridgeMethod>): IDLMethodProvider = IDLMethodProvider { clazz.newInstance() }
+    private fun methodProviderFor(clazz: Class<out IDLBridgeMethod>): IDLMethodProvider =
+        IDLMethodProvider { clazz.newInstance() }
 }

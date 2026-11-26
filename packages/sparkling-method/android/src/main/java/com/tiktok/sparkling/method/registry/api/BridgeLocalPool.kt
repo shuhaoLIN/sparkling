@@ -4,40 +4,54 @@
 
 package com.tiktok.sparkling.method.registry.api
 
+import com.tiktok.sparkling.method.registry.core.BridgePlatformType
 import com.tiktok.sparkling.method.registry.core.IBridgeContext
+import com.tiktok.sparkling.method.registry.core.IBridgePlatformType
 import com.tiktok.sparkling.method.registry.core.IDLBridgeMethod
 import com.tiktok.sparkling.method.registry.core.IDLMethodProvider
 import com.tiktok.sparkling.method.registry.core.LocalBridge
 import com.tiktok.sparkling.method.registry.core.SparklingBridgeManager
-import com.tiktok.sparkling.method.registry.core.BridgePlatformType
 import com.tiktok.sparkling.method.registry.core.interfaces.IReleasable
 import java.util.concurrent.ConcurrentHashMap
 
-/** Caches method instances by platform and name, preferring local registrations over global ones. */
+/**
+ * Caches method instances by platform and name, preferring local registrations over global ones.
+ *
+ * A lookup is answered from here first, then from the container's own registrations, then from the
+ * process-wide ones. Whatever a lookup had to build is kept here, so a method is constructed once
+ * per container rather than once per call, and [release] tears them all down with the container.
+ *
+ * Host subclasses can customize the local holder ([localBridge]), the fallback all-platform key
+ * ([allPlatform]), local and global provider lookup ([findLocalMethodProvider],
+ * [findGlobalMethodProvider]), and access the backing table ([methodTable]).
+ */
 open class BridgeLocalPool : IReleasable {
+
     protected var bridgeContext: IBridgeContext? = null
         private set
-    private val map: ConcurrentHashMap<BridgePlatformType, ConcurrentHashMap<String, IDLBridgeMethod>> = ConcurrentHashMap()
+
+    private val map: ConcurrentHashMap<IBridgePlatformType, ConcurrentHashMap<String, IDLBridgeMethod>> =
+        ConcurrentHashMap()
 
     private val defaultLocalBridge: LocalBridge by lazy {
         LocalBridge().apply { setIsLocalBridge(true) }
     }
 
-    /** The holder used for local registration and lookup. */
+    /** The container-scoped holder this pool registers into and looks up from. */
     protected open fun localBridge(): LocalBridge = defaultLocalBridge
 
     /** The fallback platform cache to consult after a platform-specific cache miss. */
-    protected open fun allPlatform(): BridgePlatformType = BridgePlatformType.ALL
+    protected open fun allPlatform(): IBridgePlatformType = BridgePlatformType.ALL
 
     /** Looks up the local factory after an instance-cache miss. */
     protected open fun findLocalMethodProvider(
-        platformType: BridgePlatformType,
+        platformType: IBridgePlatformType,
         bridgeName: String,
     ): IDLMethodProvider? = localBridge().findIDLMethodProvider(platformType, bridgeName)
 
     /** Looks up the process-wide factory when no local registration exists. */
     protected open fun findGlobalMethodProvider(
-        platformType: BridgePlatformType,
+        platformType: IBridgePlatformType,
         bridgeName: String,
     ): IDLMethodProvider? = SparklingBridgeManager.findIDLMethodProvider(platformType, bridgeName)
 
@@ -50,7 +64,7 @@ open class BridgeLocalPool : IReleasable {
     /** Registers a local method class through the pool's holder. */
     fun registerLocalIDLMethod(
         clazz: Class<out IDLBridgeMethod>?,
-        scope: BridgePlatformType = BridgePlatformType.ALL,
+        scope: IBridgePlatformType = BridgePlatformType.ALL,
     ) {
         localBridge().registerIDLMethod(clazz, scope)
     }
@@ -58,7 +72,7 @@ open class BridgeLocalPool : IReleasable {
     /** Registers a local factory, including methods without a no-argument constructor. */
     fun registerLocalIDLMethod(
         name: String,
-        scope: BridgePlatformType = BridgePlatformType.ALL,
+        scope: IBridgePlatformType = BridgePlatformType.ALL,
         clazz: Class<out IDLBridgeMethod>? = null,
         factory: () -> IDLBridgeMethod,
     ) {
@@ -68,7 +82,7 @@ open class BridgeLocalPool : IReleasable {
     /** Returns a cached instance or creates one synchronously using the registered provider. */
     fun getBridge(
         bridgeName: String,
-        platformType: BridgePlatformType,
+        platformType: IBridgePlatformType,
     ): IDLBridgeMethod? {
         val method = map[platformType]?.get(bridgeName) ?: map[allPlatform()]?.get(bridgeName)
         if (method != null) {
@@ -85,11 +99,13 @@ open class BridgeLocalPool : IReleasable {
     }
 
     /** Shares the actual instance table with host extensions. */
-    protected fun methodTable(): ConcurrentHashMap<BridgePlatformType, ConcurrentHashMap<String, IDLBridgeMethod>> = map
+    protected fun methodTable(): ConcurrentHashMap<IBridgePlatformType, ConcurrentHashMap<String, IDLBridgeMethod>> =
+        map
 
     /** Returns the platform bucket, creating it on first use. */
-    protected fun getPlatformTypeCache(platformType: BridgePlatformType): ConcurrentHashMap<String, IDLBridgeMethod> =
-        map.getOrPut(platformType) { ConcurrentHashMap() }
+    protected fun getPlatformTypeCache(
+        platformType: IBridgePlatformType,
+    ): ConcurrentHashMap<String, IDLBridgeMethod> = map.getOrPut(platformType) { ConcurrentHashMap() }
 
     /** Releases cached instances and clears their table while keeping the registrations. */
     override fun release() {

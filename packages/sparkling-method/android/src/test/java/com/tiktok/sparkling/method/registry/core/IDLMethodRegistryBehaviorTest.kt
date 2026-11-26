@@ -4,7 +4,6 @@
 
 package com.tiktok.sparkling.method.registry.core
 
-import com.tiktok.sparkling.method.registry.api.BridgeSettings
 import com.tiktok.sparkling.method.registry.api.util.ThreadPool
 import com.tiktok.sparkling.method.registry.core.model.context.ContextProviderFactory
 import io.mockk.every
@@ -28,8 +27,7 @@ import org.junit.Test
 class IDLMethodRegistryBehaviorTest {
     @Before
     fun setUp() {
-        mockkObject(BridgeSettings, IDLMethodRegistryCacheManager, ThreadPool)
-        every { BridgeSettings.bridgeRegistryOptimize } returns false
+        mockkObject(IDLMethodRegistryCacheManager, ThreadPool)
         every { IDLMethodRegistryCacheManager.provideIDLMethodRegistryCache(any()) } returns null
         every { IDLMethodRegistryCacheManager.registerIDLMethodRegistryCache(any(), any()) } just Runs
         // Cache execution is covered separately; these tests isolate name fallback and registry state.
@@ -39,7 +37,7 @@ class IDLMethodRegistryBehaviorTest {
 
     @After
     fun tearDown() {
-        unmockkObject(ThreadPool, IDLMethodRegistryCacheManager, BridgeSettings)
+        unmockkObject(ThreadPool, IDLMethodRegistryCacheManager)
     }
 
     @Test
@@ -100,18 +98,15 @@ class IDLMethodRegistryBehaviorTest {
     }
 
     @Test
-    fun optimizationRetainsTheExistingNumberOfNameFallbackConstructions() {
-        for (optimized in listOf(false, true)) {
-            every { BridgeSettings.bridgeRegistryOptimize } returns optimized
-            CountingMethod.constructions = 0
-            val registry = IDLMethodRegistry(inferMethodNameFromInstance = true)
-            registry.registerMethod(CountingMethod::class.java)
+    fun allScopeResolvesMethodNameOnceBeforePopulatingExpandedPlatforms() {
+        CountingMethod.constructions = 0
+        val registry = IDLMethodRegistry(inferMethodNameFromInstance = true)
+        registry.registerMethod(CountingMethod::class.java)
 
-            assertEquals(if (optimized) 1 else 3, CountingMethod.constructions)
-            for (platform in listOf(BridgePlatformType.ALL, BridgePlatformType.WEB, BridgePlatformType.LYNX)) {
-                assertSame(CountingMethod::class.java, registry.findMethodClass(platform, "counted"))
-                assertNotNull(registry.findMethodProvider(platform, "counted"))
-            }
+        assertEquals(1, CountingMethod.constructions)
+        for (platform in listOf(BridgePlatformType.ALL, BridgePlatformType.WEB, BridgePlatformType.LYNX)) {
+            assertSame(CountingMethod::class.java, registry.findMethodClass(platform, "counted"))
+            assertNotNull(registry.findMethodProvider(platform, "counted"))
         }
     }
 

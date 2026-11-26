@@ -1,4 +1,4 @@
-// Copyright (c) 2022 TikTok Pte. Ltd.
+// Copyright (c) 2023 TikTok Pte. Ltd.
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
 
@@ -7,15 +7,22 @@ package com.tiktok.sparkling.method.registry.core
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Holds one registry per namespace. Hosts can supply a registry subclass through [createRegistry].
+ * Holds one [IDLMethodRegistry] per namespace.
+ *
+ * An instance is either process-wide or bound to a single container: [setIsLocalBridge] picks
+ * which and [setContext] carries the container. Hosts can supply a registry subclass through
+ * [createRegistry] and customize namespace replacement through [registerRegistry].
  */
 open class LocalBridge {
+
     open val TAG = "LocalBridge"
 
     protected var isLocalBridge: Boolean = false
         private set
+
     protected var bridgeContext: IBridgeContext? = null
         private set
+
     private val idlRegistryMap: ConcurrentHashMap<String, IDLMethodRegistry> = ConcurrentHashMap()
 
     /** Selects local or global registration for subsequently created registries. */
@@ -29,39 +36,30 @@ open class LocalBridge {
     }
 
     /** Replaces any registry already registered under the same namespace. */
-    fun registerRegistry(
+    open fun registerRegistry(
         registry: IDLMethodRegistry,
     ) {
-        // Allow overriding existing registries
         idlRegistryMap[registry.namespace] = registry
     }
 
     /** Finds a method class within the requested namespace and platform. */
     fun findIDLMethodClass(
-        platformType: BridgePlatformType,
+        platformType: IBridgePlatformType,
         name: String,
         namespace: String = DEFAULT_NAMESPACE,
-    ): Class<out IDLBridgeMethod>? {
-        idlRegistryMap[namespace] ?: return null
-
-        return idlRegistryMap[namespace]?.findMethodClass(platformType, name)
-    }
+    ): Class<out IDLBridgeMethod>? = idlRegistryMap[namespace]?.findMethodClass(platformType, name)
 
     /** Finds a method factory within the requested namespace and platform. */
     fun findIDLMethodProvider(
-        platformType: BridgePlatformType,
+        platformType: IBridgePlatformType,
         name: String,
         namespace: String = DEFAULT_NAMESPACE,
-    ): IDLMethodProvider? {
-        idlRegistryMap[namespace] ?: return null
-
-        return idlRegistryMap[namespace]?.findMethodProvider(platformType, name)
-    }
+    ): IDLMethodProvider? = idlRegistryMap[namespace]?.findMethodProvider(platformType, name)
 
     /** Registers a method class, creating the namespace's registry on first use. */
     fun registerIDLMethod(
         clazz: Class<out IDLBridgeMethod>?,
-        scope: BridgePlatformType = BridgePlatformType.ALL,
+        scope: IBridgePlatformType = BridgePlatformType.ALL,
         namespace: String = DEFAULT_NAMESPACE,
     ) {
         clazz?.let { nonNullClazz ->
@@ -76,7 +74,7 @@ open class LocalBridge {
     fun registerIDLMethod(
         name: String,
         methodProvider: IDLMethodProvider,
-        scope: BridgePlatformType = BridgePlatformType.ALL,
+        scope: IBridgePlatformType = BridgePlatformType.ALL,
         namespace: String = DEFAULT_NAMESPACE,
         clazz: Class<out IDLBridgeMethod>? = null,
     ) {
@@ -88,13 +86,9 @@ open class LocalBridge {
 
     /** Returns the registered classes for the requested namespace and platform. */
     fun getIDLMethodList(
-        platformType: BridgePlatformType,
+        platformType: IBridgePlatformType,
         namespace: String = DEFAULT_NAMESPACE,
-    ): Map<String, Class<out IDLBridgeMethod>>? {
-        idlRegistryMap[namespace] ?: return null
-
-        return idlRegistryMap[namespace]?.getMethodList(platformType)
-    }
+    ): Map<String, Class<out IDLBridgeMethod>>? = idlRegistryMap[namespace]?.getMethodList(platformType)
 
     /** Creates the registry used by both class and provider registration. */
     protected open fun createRegistry(): IDLMethodRegistry = IDLMethodRegistry(isLocalBridge, bridgeContext)
